@@ -2078,84 +2078,190 @@ PAGES.admin = function () {
 };
 
 /* ---------- PROFIL ---------- */
+/* Fenêtre de saisie du profil : les champs n'existent dans la page QUE pendant que la fenêtre est ouverte,
+   ils démarrent vides (aucune donnée personnelle n'est préremplie ni affichée) et la fenêtre est détruite à la fermeture.
+   champs = [{id, label, type, placeholder, autocomplete, inputmode, requis, oeil, options, valeur}]
+   valider(valeurs) -> true : on ferme ; false : la fenêtre reste ouverte (erreur déjà signalée par toast). */
+function fenetreProfil(titre, info, champs, valider) {
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.setAttribute('role', 'dialog');
+  m.setAttribute('aria-modal', 'true');
+  m.innerHTML = '<form class="modal-box" autocomplete="off"><h3></h3><p style="margin:6px 0 4px"><small></small></p>' +
+    '<div class="mp-champs" style="text-align:left"></div>' +
+    '<div class="boutons" style="justify-content:center"><button class="btn" type="submit">Enregistrer</button>' +
+    '<button class="btn btn-2" type="button" data-non>Annuler</button></div></form>';
+  $('h3', m).textContent = titre;
+  $('small', m).textContent = info || '';
+  const zone = $('.mp-champs', m);
+
+  champs.forEach(c => {
+    const l = document.createElement('label');
+    l.htmlFor = 'mp-' + c.id;
+    l.textContent = c.label;
+    let i;
+    if (c.type === 'select') {
+      i = document.createElement('select');
+      c.options.forEach(([val, txt]) => {
+        const o = document.createElement('option');
+        o.value = val; o.textContent = txt; i.appendChild(o);
+      });
+      i.value = c.valeur;
+    } else {
+      i = document.createElement('input');
+      i.type = c.type || 'text';
+      if (c.type !== 'file') i.className = 'champ';
+      else { i.accept = 'image/*'; i.style.width = '100%'; }
+      if (c.placeholder) i.placeholder = c.placeholder;
+      if (c.inputmode) i.inputMode = c.inputmode;
+      i.autocapitalize = 'none';
+    }
+    i.id = 'mp-' + c.id;
+    i.autocomplete = c.autocomplete || 'off';
+    if (c.requis) i.required = true;
+    zone.append(l, i);
+    if (c.oeil) ajouterOeil(i);
+  });
+
+  const fermer = () => { document.removeEventListener('keydown', echap); m.remove(); };
+  const echap = e => { if (e.key === 'Escape') fermer(); };
+  document.addEventListener('keydown', echap);
+  $('[data-non]', m).onclick = fermer;
+
+  $('form', m).onsubmit = async e => {
+    e.preventDefault();
+    const btn = $('button[type="submit"]', m);
+    const v = {};
+    champs.forEach(c => {
+      const el = $('#mp-' + c.id, m);
+      v[c.id] = c.type === 'file' ? el.files[0] : el.value;
+    });
+    btn.disabled = true;
+    let ok = false;
+    try { ok = await valider(v); }
+    catch (err) { console.error(err); toast(messageErreur(err), 'err'); }
+    btn.disabled = false;
+    if (ok) fermer();
+  };
+
+  document.body.appendChild(m);
+  const premier = $('input, select', m);
+  if (premier) premier.focus();
+}
+
 PAGES.profil = function () {
   let u = DB.courant();
 
+  /* Affiche la photo et les informations du profil (nom, NPI, e-mail, téléphone) */
   function afficher() {
     u = DB.courant();
     remplirChamps($('#details'), u);
     $('#photo-profil').src = u.photo || LOGO_DEFAUT;
-    $('#p-nom').value = u.nom;
-    $('#p-tel').value = u.tel;
-    $('#langue').value = u.lang || 'fr';
     const mail = Auth.emailCourant(u.npi);
-    $('#email-actuel').textContent = emailTechnique(mail) ? 'Aucun e-mail enregistré : ajoutez-en un pour pouvoir réinitialiser votre mot de passe par e-mail.' : mail;
+    $('#email-actuel').textContent = emailTechnique(mail) ? 'Aucun e-mail enregistré' : mail;
   }
   afficher();
 
-  $('#langue').onchange = () => {
-    u.lang = $('#langue').value;
-    DB.enregistrer(u);
-    DB.ecrire('sobunu_lang', u.lang);
-    appliquerLangue();
+  /* ----- Photo ----- */
+  $('#btn-photo').onclick = () => fenetreProfil('Changer la photo', '',
+    [{ id: 'photo', label: 'Choisir une image', type: 'file', requis: true }],
+    async v => {
+      if (!v.photo) { toast('Choisissez une image.', 'err'); return false; }
+      u.photo = await redimensionner(v.photo);
+      DB.enregistrer(u);
+      afficher();
+      toast('Photo modifiée.');
+      return true;
+    });
+
+  /* ----- Nom et téléphone (un champ laissé vide reste inchangé) ----- */
+  $('#btn-infos').onclick = () => fenetreProfil('Modifier mes informations',
+    'Laissez vide ce que vous ne souhaitez pas modifier.',
+    [
+      { id: 'nom', label: 'Nom et prénom', autocomplete: 'name' },
+      { id: 'tel', label: 'Téléphone', type: 'tel', inputmode: 'tel', autocomplete: 'tel' }
+    ],
+    async v => {
+      const nom = v.nom.trim(), tel = v.tel.trim();
+      if (!nom && !tel) { toast('Rien à modifier.', 'err'); return false; }
+      if (nom && nom.length < 3) { toast('Nom invalide.', 'err'); return false; }
+      if (tel && tel !== u.tel) {
+        const autre = DB.trouverParTel(tel);
+        if (autre && autre.npi !== u.npi) { toast('Ce téléphone est déjà utilisé.', 'err'); return false; }
+        try { await Compte.changerTel(u.tel, tel, u.npi); }
+        catch (err) { console.error(err); toast(messageErreur(err), 'err'); return false; }
+        u.tel = tel;
+      }
+      if (nom) u.nom = nom;
+      DB.enregistrer(u);
+      afficher();
+      construireNav(); appliquerLogo(); appliquerLangue();
+      toast('Informations mises à jour.');
+      return true;
+    });
+
+  /* ----- E-mail (l'adresse actuelle n'est jamais affichée) ----- */
+  $('#btn-email').onclick = () => {
+    const sans = emailTechnique(Auth.emailCourant(u.npi));
+    fenetreProfil('Mon e-mail',
+      sans ? 'Aucun e-mail enregistré : ajoutez-en un pour pouvoir réinitialiser votre mot de passe par e-mail.'
+           : 'Un e-mail est déjà enregistré. Saisissez-en un nouveau pour le remplacer.',
+      [
+        { id: 'email', label: 'Nouvel e-mail', type: 'email', inputmode: 'email', autocomplete: 'email', requis: true },
+        { id: 'mdp', label: 'Mot de passe actuel', type: 'password', autocomplete: 'current-password', requis: true, oeil: true }
+      ],
+      async v => {
+        try {
+          const change = await Compte.changerEmail(v.mdp, v.email);
+          if (!change) { toast('C\'est déjà votre e-mail.', 'err'); return false; }
+        } catch (err) {
+          console.error(err);
+          const c = err && err.code;
+          if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') toast('Mot de passe incorrect.', 'err');
+          else toast(messageErreur(err), 'err');
+          return false;
+        }
+        afficher();
+        toast('E-mail enregistré. Vous pouvez maintenant vous connecter avec.');
+        return true;
+      });
   };
 
-  $('#form-infos').onsubmit = async e => {
-    e.preventDefault();
-    const tel = $('#p-tel').value.trim();
-    const autre = DB.trouverParTel(tel);
-    if (autre && autre.npi !== u.npi) return toast('Ce téléphone est déjà utilisé.', 'err');
-    if ($('#p-nom').value.trim().length < 3) return toast('Nom invalide.', 'err');
-    try { await Compte.changerTel(u.tel, tel, u.npi); }
-    catch (err) { console.error(err); return toast(messageErreur(err), 'err'); }
-    u.nom = $('#p-nom').value.trim();
-    u.tel = tel;
-    DB.enregistrer(u);
-    afficher();
-    construireNav(); appliquerLogo(); appliquerLangue();
-    toast('Informations mises à jour.');
-  };
+  /* ----- Mot de passe ----- */
+  $('#btn-mdp').onclick = () => fenetreProfil('Données de connexion', '',
+    [
+      { id: 'actuel', label: 'Mot de passe actuel', type: 'password', autocomplete: 'current-password', requis: true, oeil: true },
+      { id: 'nouveau', label: 'Nouveau mot de passe', type: 'password', autocomplete: 'new-password', requis: true, oeil: true },
+      { id: 'nouveau2', label: 'Confirmation', type: 'password', autocomplete: 'new-password', requis: true, oeil: true }
+    ],
+    async v => {
+      if (v.nouveau.length < 6) { toast('6 caractères minimum.', 'err'); return false; }
+      if (v.nouveau !== v.nouveau2) { toast('Les mots de passe ne correspondent pas.', 'err'); return false; }
+      try { await Compte.changerMdp(v.actuel, v.nouveau); }
+      catch (err) {
+        console.error(err);
+        const c = err && err.code;
+        if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') toast('Mot de passe actuel incorrect.', 'err');
+        else toast(messageErreur(err), 'err');
+        return false;
+      }
+      toast('Mot de passe modifié.');
+      return true;
+    });
 
-  ajouterOeil($('#email-mdp'));
-  $('#form-email').onsubmit = async e => {
-    e.preventDefault();
-    try {
-      const change = await Compte.changerEmail($('#email-mdp').value, $('#p-email').value);
-      if (!change) return toast('C\'est déjà votre e-mail.', 'err');
-    } catch (err) {
-      console.error(err);
-      const c = err && err.code;
-      if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') return toast('Mot de passe incorrect.', 'err');
-      return toast(messageErreur(err), 'err');
-    }
-    e.target.reset();
-    afficher();
-    toast('E-mail enregistré. Vous pouvez maintenant vous connecter avec.');
-  };
-  ['#mdp-actuel', '#mdp-nouveau', '#mdp-nouveau2'].forEach(id => ajouterOeil($(id)));
-  $('#form-mdp').onsubmit = async e => {
-    e.preventDefault();
-    const n = $('#mdp-nouveau').value;
-    if (n.length < 6) return toast('6 caractères minimum.', 'err');
-    if (n !== $('#mdp-nouveau2').value) return toast('Les mots de passe ne correspondent pas.', 'err');
-    try { await Compte.changerMdp($('#mdp-actuel').value, n); }
-    catch (err) {
-      console.error(err);
-      const c = err && err.code;
-      if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') return toast('Mot de passe actuel incorrect.', 'err');
-      return toast(messageErreur(err), 'err');
-    }
-    e.target.reset();
-    toast('Mot de passe modifié.');
-  };
-
-  $('#photo-fichier').onchange = async e => {
-    if (!e.target.files[0]) return;
-    u.photo = await redimensionner(e.target.files[0]);
-    DB.enregistrer(u);
-    afficher();
-    toast('Photo modifiée.');
-  };
+  /* ----- Langue ----- */
+  $('#btn-langue').onclick = () => fenetreProfil('Langue', '',
+    [{
+      id: 'langue', label: 'Langue', type: 'select', valeur: u.lang || 'fr',
+      options: [['fr', 'Français'], ['en', 'English'], ['bba', 'Baatɔnum (Bariba)']]
+    }],
+    async v => {
+      u.lang = v.langue;
+      DB.enregistrer(u);
+      DB.ecrire('sobunu_lang', u.lang);
+      appliquerLangue();
+      return true;
+    });
 
   $('#deco').onclick = deconnexion;
 };

@@ -80,6 +80,9 @@
     .boutons{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
     .apercu,.photo-profil{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-top:10px;box-shadow:var(--ombre)}
     .photo-profil{width:110px;height:110px}
+    .profil-tete{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+    .profil-tete .photo-profil{margin-top:0}
+    .infos dd{overflow-wrap:anywhere}
     #qr{display:inline-block;padding:10px;background:#fff;border-radius:10px;box-shadow:var(--ombre)}
     [hidden]{display:none!important}
 
@@ -115,48 +118,37 @@
 
     <h1>Mon profil</h1>
     <div class="carte" id="details">
-      <img id="photo-profil" class="photo-profil" alt="Ma photo">
-      <dl class="infos">
-        <dt>NPI</dt><dd data-champ="npi"></dd>
-        <dt>Nom et prénom</dt><dd data-champ="nom"></dd>
-        <dt>Téléphone</dt><dd data-champ="tel"></dd>
-        <dt>Rôle</dt><dd data-champ="role"></dd>
-      </dl>
-      <label for="photo-fichier" data-i18n="change_photo">Changer la photo</label>
-      <input id="photo-fichier" type="file" accept="image/*">
+      <div class="profil-tete">
+        <img id="photo-profil" class="photo-profil" alt="Ma photo">
+        <dl class="infos">
+          <dt>Nom et prénom</dt><dd data-champ="nom"></dd>
+          <dt>NPI</dt><dd data-champ="npi"></dd>
+          <dt>E-mail</dt><dd id="email-actuel"></dd>
+          <dt>Téléphone</dt><dd data-champ="tel"></dd>
+        </dl>
+      </div>
+      <div class="boutons"><button class="btn" id="btn-photo" type="button" data-i18n="change_photo">Changer la photo</button></div>
     </div>
     <div class="grille">
       <div class="carte">
-        <h3 data-i18n="my_info">Modifier mes informations</h3>
-        <form id="form-infos">
-          <label for="p-nom">Nom et prénom</label><input class="champ" id="p-nom" required>
-          <label for="p-tel">Téléphone</label><input class="champ" id="p-tel" type="tel" required>
-          <div class="boutons"><button class="btn" type="submit" data-i18n="save">Enregistrer</button></div>
-        </form>
+        <h3>Mes informations</h3>
+        <div class="boutons"><button class="btn" id="btn-infos" type="button" data-i18n="my_info">Modifier mes informations</button></div>
       </div>
       <div class="carte">
         <h3>Mon e-mail</h3>
-        <p id="email-actuel"></p>
-        <form id="form-email">
-          <label for="p-email">Nouvel e-mail</label><input class="champ" id="p-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" required>
-          <label for="email-mdp">Mot de passe actuel</label><input class="champ" id="email-mdp" type="password" autocomplete="current-password" required>
-          <div class="boutons"><button class="btn" type="submit" data-i18n="save">Enregistrer</button></div>
-        </form>
+        <div class="boutons"><button class="btn" id="btn-email" type="button">Modifier mon e-mail</button></div>
       </div>
       <div class="carte">
         <h3>Données de connexion</h3>
-        <form id="form-mdp">
-          <label for="mdp-actuel">Mot de passe actuel</label><input class="champ" id="mdp-actuel" type="password" required>
-          <label for="mdp-nouveau">Nouveau mot de passe</label><input class="champ" id="mdp-nouveau" type="password" required>
-          <label for="mdp-nouveau2">Confirmation</label><input class="champ" id="mdp-nouveau2" type="password" required>
-          <div class="boutons"><button class="btn" type="submit" data-i18n="save">Enregistrer</button></div>
-        </form>
+        <div class="boutons"><button class="btn" id="btn-mdp" type="button">Modifier mon mot de passe</button></div>
       </div>
     </div>
     <div class="carte">
-      <label for="langue" data-i18n="language">Langue</label>
-      <select id="langue" style="width:auto"><option value="fr">Français</option><option value="en">English</option><option value="bba">Baatɔnum (Bariba)</option></select>
-      <div class="boutons"><button class="btn btn-danger" id="deco" type="button" data-i18n="logout">Se déconnecter</button></div>
+      <h3 data-i18n="language">Langue</h3>
+      <div class="boutons">
+        <button class="btn" id="btn-langue" type="button">Changer la langue</button>
+        <button class="btn btn-danger" id="deco" type="button" data-i18n="logout">Se déconnecter</button>
+      </div>
     </div>
   </main>
 <script src="app.js"></script>
