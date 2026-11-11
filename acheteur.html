@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Application installable (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#f28c00">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SƆBUNU">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Acheteur - SƆBUNU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f28c00">
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+  <style>
+    /* ===== SƆBUNU : couleurs prises sur la capture d'écran ===== */
+    :root{
+      --fond:#fefbf8;              /* couleur de fond de la capture */
+      --bouton:#f7f9f1;            /* fond des boutons de la capture */
+      --ombre:0 2px 10px rgba(0,0,0,.18);   /* box-shadow */
+      --marine:#0b1a4a; --orange:#f28c00; --vert:#1f9d3a; --violet:#7030a0;
+      --texte:#232323; --bord:#cfc8bc;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Poppins','Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--texte);line-height:1.55}
+    h1,h2,h3,.titre{font-family:'Poppins','Segoe UI',Arial,sans-serif;color:var(--violet);font-weight:600}
+    h1{font-size:1.9rem;line-height:1.25} h2{font-size:1.4rem;margin-bottom:10px} h3{font-size:1.15rem;margin-bottom:8px}
+    a{color:var(--marine)}
+
+    /* ----- navbar verticale ----- */
+    .nav{position:fixed;top:0;left:0;bottom:0;width:165px;background:var(--fond);box-shadow:var(--ombre);
+         padding:10px;overflow-y:auto;z-index:50;display:flex;flex-direction:column;gap:6px;transition:transform .25s}
+    .nav-tete{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .nav-tete img{width:48px;height:48px;object-fit:contain}
+    .nav-tete strong{font-size:1.1rem}
+    .nav-btn,.nav-lien{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px dotted var(--bord);
+         border-radius:10px;background:var(--bouton);color:var(--marine);font:inherit;font-weight:700;cursor:pointer;
+         text-decoration:none;text-align:left}
+    .nav-btn:hover,.nav-lien:hover{box-shadow:var(--ombre)}
+    .nav-lien.actif{border-color:var(--orange);color:var(--orange)}
+    .nav img{width:22px;height:22px;object-fit:contain}
+    .nav-tete img{width:48px;height:48px}
+    .emoji{width:22px;text-align:center}
+    .fleche{margin-left:auto;font-style:normal;transition:transform .2s}
+    .groupe.ouvert .fleche{transform:rotate(180deg)}
+    .sous{display:none;flex-direction:column;gap:5px;padding:6px 0 4px 16px}
+    .groupe.ouvert .sous{display:flex}
+    .nav-pied{margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:12px;font-size:.85rem}
+    .burger{display:none;position:fixed;top:10px;left:10px;z-index:60;width:42px;height:42px;font-size:1.4rem;
+            border:1px dotted var(--bord);border-radius:10px;background:var(--bouton);box-shadow:var(--ombre);cursor:pointer}
+
+    /* ----- contenu ----- */
+    .contenu{margin-left:165px;padding:32px 28px;max-width:1000px}
+    .carte{background:var(--fond);border-radius:14px;box-shadow:var(--ombre);padding:22px;margin-bottom:22px}
+    .infos{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:12px 0}
+    .infos dt{font-weight:700;color:var(--marine)}
+    .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:16px 0}
+    .stat{background:var(--bouton);border:1px dotted var(--bord);border-radius:12px;padding:14px;text-align:center}
+    .stat b{display:block;font-size:2rem;color:var(--orange)}
+
+    /* ----- formulaires et boutons ----- */
+    label{display:block;font-weight:700;margin:12px 0 4px;color:var(--marine)}
+    .champ,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--bord);border-radius:10px;
+         background:var(--fond);font:inherit;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)}
+    input,select,textarea{background:var(--fond);color:var(--texte)}
+    .champ:focus,select:focus,textarea:focus{outline:2px solid var(--orange)}
+    .btn{display:inline-block;padding:10px 22px;border:1px dotted var(--marine);border-radius:10px;background:var(--bouton);
+         color:var(--marine);font:inherit;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:var(--ombre)}
+    .btn:hover{background:#fff1dc}
+    .btn-2{border-color:var(--bord);color:var(--violet)}
+    .btn-danger{color:#b00020;border-color:#b00020}
+    .boutons{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+    .apercu,.photo-profil{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-top:10px;box-shadow:var(--ombre)}
+    .photo-profil{width:110px;height:110px}
+    #qr{display:inline-block;padding:10px;background:#fff;border-radius:10px;box-shadow:var(--ombre)}
+    [hidden]{display:none!important}
+
+    .tableau{width:100%;border-collapse:collapse;margin-top:8px}
+    .tableau th,.tableau td{padding:10px 12px;text-align:left;border-bottom:1px dotted var(--bord)}
+    .tableau th{background:var(--bouton);color:var(--marine);font-weight:700}
+    .tableau td.num,.tableau th.num{text-align:right}
+    .tableau tfoot td{font-weight:700;color:var(--marine);border-top:2px solid var(--bord);border-bottom:0}
+    .tableau .vide{text-align:center;font-style:italic;color:#777}
+
+    .recap-tete{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .recap-tete h2{margin-bottom:0}
+    .recap-tete .btn{padding:8px 16px;margin-left:auto;flex-shrink:0}
+    @media print{
+      #nav-root,.nav,.burger,.toast,.modal,.no-print,.contenu > :not(#bloc-recap){display:none!important}
+      body{background:#fff}
+      .contenu{margin:0;padding:0;max-width:none}
+      #bloc-recap{box-shadow:none;padding:0}
+    }
+
+    /* ----- page d'accueil publique (index) ----- */
+    .hero{text-align:center;padding:10px 0}
+    .hero h1 span{color:var(--orange)}
+    .logo-grand{width:230px;max-width:70%;margin:24px auto;display:block}
+
+    /* ----- fenêtres et messages ----- */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:14px}
+    .modal-box{background:var(--fond);border-radius:14px;box-shadow:var(--ombre);padding:20px;width:min(380px,100%);text-align:center}
+    .toast{position:fixed;right:18px;bottom:18px;padding:12px 18px;border-radius:10px;background:var(--bouton);
+           border-left:5px solid var(--vert);box-shadow:var(--ombre);z-index:200;font-weight:700}
+    .toast.err{border-left-color:#b00020}
+
+    @media (max-width:860px){
+      .nav{transform:translateX(-100%)} .nav.ouvert{transform:none}
+      .contenu{margin-left:0;padding:70px 16px 24px} .burger{display:block}
+      h1{font-size:1.6rem}
+    }
+    /* zone réservée : le contenu reste caché tant que le code n'est pas saisi */
+    body[data-zone="1"]:not(.zone-prete) .contenu{visibility:hidden}
+    /* ===== Section « Mes transporteurs » : organisée et adaptée au smartphone ===== */
+    #bloc-transporteurs select{min-height:48px;font-size:16px}     /* 16px : pas de zoom automatique sur iPhone */
+    #bloc-transporteurs .btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+    .actions-transp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+    .actions-transp .btn{display:flex;align-items:center;justify-content:center;text-align:center;min-height:52px;line-height:1.25}
+    .actions-transp .btn-scan{border:2px solid var(--orange);background:#fff1dc}
+    .actions-transp .btn-scan:active{transform:scale(.98)}
+    #bloc-transporteurs .aide{margin-top:10px;color:#5a5a5a}
+    #fiche:not([hidden]) ~ .aide-vide{display:none}
+    #bloc-transporteurs #fiche{margin-top:18px;padding-top:16px;border-top:1px dotted var(--bord)}
+    .identite{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px}
+    .identite .id-nom{flex-basis:100%;font-size:1.2rem;color:var(--marine);overflow-wrap:anywhere}
+    .identite .id-ligne{color:#5a5a5a;font-size:.95rem;overflow-wrap:anywhere}
+    #bloc-transporteurs .stat{font-size:.85rem;line-height:1.3}
+    #bloc-transporteurs .stat .val{display:block;font-size:1.8rem;font-weight:700;color:var(--orange);overflow-wrap:anywhere}
+    #bloc-transporteurs .stat .val b{display:inline;font-size:inherit}
+    #bloc-transporteurs .stat .val small{display:block;font-size:.7rem;font-weight:400;color:#5a5a5a}
+
+    @media (max-width:860px){
+      #bloc-transporteurs .stats{grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 0}
+      #bloc-transporteurs .stat{padding:12px 8px}
+      #bloc-transporteurs .stat .val{font-size:1.6rem}
+      #bloc-transporteurs .stat-gain{grid-column:1/-1}
+    }
+    @media (max-width:480px){
+      .actions-transp{grid-template-columns:1fr}                    /* boutons l'un sous l'autre, pleine largeur */
+      .actions-transp .btn-scan{order:-1;min-height:60px;font-size:1.1rem}
+      .identite .id-nom{font-size:1.1rem}
+      .identite .id-ligne{flex-basis:100%}
+      #bloc-transporteurs .carte,#bloc-transporteurs{padding:16px}
+    }
+    @media print{ #bloc-transporteurs{display:none!important} }
+    /* Mes modérateurs : on touche une carte pour la choisir, puis « Retirer » (à côté de « Ajouter modérateur ») */
+    .mod-ligne{cursor:pointer}
+    .mod-ligne.choisi{border:2px solid var(--orange);background:#fff1dc}
+    #mod-retirer-ach:disabled{opacity:.45;cursor:default}
+</style>
+</head>
+<body data-page="acheteur" data-auth="1" data-roles="acheteur" data-zone="1">
+  <div id="nav-root"></div>
+  <main class="contenu">
+
+    <h1>Espace acheteur</h1>
+    <div id="carrousel" data-carrousel="acheteur"></div>
+    <div class="stats">
+      <div class="stat"><b id="total-sacs">0</b>sacs déclarés à l'administrateur</div>
+      <div class="stat"><b id="total-somme">0</b>montant payé pour le dédouanement</div>
+    </div>
+    <div class="carte" id="bloc-tarifs">
+      <h2 data-i18n="tarif_title">Montant du transport</h2>
+      <p>Fixez le montant que vous payez selon le nombre de sacs transportés.</p>
+      <label for="tarif-sacs" data-i18n="tarif_sacs">Nombre de sacs</label>
+      <select id="tarif-sacs" style="width:auto">
+        <option value="2">Deux sacs</option><option value="3">Trois sacs</option><option value="4">Quatre sacs</option><option value="8">Huit sacs</option><option value="10">Dix sacs</option>
+      </select>
+      <label for="tarif-montant" data-i18n="tarif_amount">Montant (FCFA)</label>
+      <input class="champ" id="tarif-montant" type="number" min="1" step="50" placeholder="Ex. 1500" style="width:200px">
+      <div class="boutons"><button class="btn" id="tarif-enregistrer" type="button" data-i18n="save">Enregistrer</button></div>
+      <dl class="infos" id="tarifs-resume"></dl>
+    </div>
+    <div class="carte" id="bloc-declaration">
+      <h2>Déclaration de mes sacs</h2>
+      <label for="decl-sacs">Nombre de sacs</label>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px">
+        <input class="champ" id="decl-sacs" type="number" min="1" step="1" placeholder="Ex. 10" style="width:160px">
+        <span>Montant du dédouanement : <b id="decl-montant" style="color:var(--vert)">0 FCFA</b></span>
+        <small id="decl-info"></small>
+      </div>
+      <div class="boutons"><button class="btn" id="decl-enregistrer" type="button">Enregistrer la déclaration</button></div>
+      <p><small id="decl-derniere"></small></p>
+    </div>
+    <div class="carte" id="bloc-recap">
+      <div class="recap-tete">
+        <h2>Récapitulatif de mes déclarations</h2>
+        <button class="btn btn-2 no-print" id="recap-imprimer" type="button">🖨️ Imprimer</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tableau" id="recap-table">
+          <thead><tr><th>N°</th><th>Date</th><th>Nombre de sacs</th><th>Montant du dédouanement</th></tr></thead>
+          <tbody id="recap-corps"></tbody>
+          <tfoot id="recap-pied"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="carte" id="bloc-moderateurs">
+      <h2>Mes modérateurs</h2>
+      <p><small>Vos modérateurs sont vos bras droits : ils scannent les codes QR des transporteurs et chaque tour est compté pour vous. Le modérateur doit d'abord être validé par l'administrateur.</small></p>
+      <div id="mod-liste" style="display:flex;flex-direction:column;gap:10px;margin:10px 0"></div>
+      <div class="boutons"><button class="btn btn-2" id="mod-ajouter" type="button">+ Ajouter modérateur</button><button class="btn btn-danger" id="mod-retirer-ach" type="button">Retirer</button></div>
+    </div>
+    <div class="carte" id="bloc-transporteurs">
+      <h2>Mes transporteurs</h2>
+      <div class="stats" id="stats-jour">
+        <div class="stat"><span class="val" id="jour-tours">0</span>tours du jour (tous mes transporteurs)</div>
+        <div class="stat"><span class="val" id="jour-sacs">0</span>sacs transportés</div>
+        <div class="stat stat-gain"><span class="val" id="jour-gain" style="color:var(--vert)">0 FCFA</span>gain journalier total versé</div>
+      </div>
+
+      <!-- 1) Choisir un transporteur -->
+      <label for="choix">Transporteur</label>
+      <select id="choix"></select>
+
+      <!-- 2) Actions : scanner (principale) et ajouter -->
+      <div class="actions-transp">
+        <button class="btn btn-scan" id="scan" type="button" data-i18n="scan">📷 Scanner le code QR</button>
+        <button class="btn btn-2" id="ajouter" type="button" data-i18n="add_carrier">+ Ajouter transporteur</button>
+      </div>
+      <p class="aide"><small>Le scan affiche les informations du transporteur, ses tours et son gain journalier chez vous.</small></p>
+
+      <!-- 3) Fiche du transporteur choisi -->
+      <div id="fiche" hidden>
+        <div class="identite">
+          <strong class="id-nom" data-champ="nom"></strong>
+          <span class="id-ligne">NPI : <span data-champ="npi"></span></span>
+          <span class="id-ligne">Tél. : <span data-champ="tel"></span></span>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="val" data-champ="sacs"></span>sacs par tour</div>
+          <div class="stat"><span class="val" data-champ="tours"></span>tours (avec moi)</div>
+          <div class="stat"><span class="val" data-champ="sacsAch"></span>sacs transportés (avec moi)</div>
+          <div class="stat stat-gain"><span class="val val-gain" data-champ="gain"></span>gain journalier (avec moi)</div>
+        </div>
+      </div>
+      <p class="aide aide-vide"><em>Choisissez un transporteur dans la liste, ou ajoutez-en un avec son NPI.</em></p>
+    </div>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="app.js"></script>
+<script>document.getElementById('recap-imprimer').addEventListener('click',function(){window.print();});</script>
+</body>
+</html>

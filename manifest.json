@@ -1,0 +1,17 @@
+{
+  "name": "SƆBUNU",
+  "short_name": "SƆBUNU",
+  "description": "Suivi des tours, des sacs et des gains des transporteurs.",
+  "lang": "fr",
+  "start_url": "accueil.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fefbf8",
+  "theme_color": "#f28c00",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

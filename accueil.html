@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Application installable (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#f28c00">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SƆBUNU">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Accueil - SƆBUNU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f28c00">
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+  <style>
+    /* ===== SƆBUNU : couleurs prises sur la capture d'écran ===== */
+    :root{
+      --fond:#fefbf8;              /* couleur de fond de la capture */
+      --bouton:#f7f9f1;            /* fond des boutons de la capture */
+      --ombre:0 2px 10px rgba(0,0,0,.18);   /* box-shadow */
+      --marine:#0b1a4a; --orange:#f28c00; --vert:#1f9d3a; --violet:#7030a0;
+      --texte:#232323; --bord:#cfc8bc;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Poppins','Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--texte);line-height:1.55}
+    h1,h2,h3,.titre{font-family:'Poppins','Segoe UI',Arial,sans-serif;color:var(--violet);font-weight:600}
+    h1{font-size:1.9rem;line-height:1.25} h2{font-size:1.4rem;margin-bottom:10px} h3{font-size:1.15rem;margin-bottom:8px}
+    a{color:var(--marine)}
+
+    /* ----- navbar verticale ----- */
+    .nav{position:fixed;top:0;left:0;bottom:0;width:165px;background:var(--fond);box-shadow:var(--ombre);
+         padding:10px;overflow-y:auto;z-index:50;display:flex;flex-direction:column;gap:6px;transition:transform .25s}
+    .nav-tete{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .nav-tete img{width:48px;height:48px;object-fit:contain}
+    .nav-tete strong{font-size:1.1rem}
+    .nav-btn,.nav-lien{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px dotted var(--bord);
+         border-radius:10px;background:var(--bouton);color:var(--marine);font:inherit;font-weight:700;cursor:pointer;
+         text-decoration:none;text-align:left}
+    .nav-btn:hover,.nav-lien:hover{box-shadow:var(--ombre)}
+    .nav-lien.actif{border-color:var(--orange);color:var(--orange)}
+    .nav img{width:22px;height:22px;object-fit:contain}
+    .nav-tete img{width:48px;height:48px}
+    .emoji{width:22px;text-align:center}
+    .fleche{margin-left:auto;font-style:normal;transition:transform .2s}
+    .groupe.ouvert .fleche{transform:rotate(180deg)}
+    .sous{display:none;flex-direction:column;gap:5px;padding:6px 0 4px 16px}
+    .groupe.ouvert .sous{display:flex}
+    .nav-pied{margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:12px;font-size:.85rem}
+    .burger{display:none;position:fixed;top:10px;left:10px;z-index:60;width:42px;height:42px;font-size:1.4rem;
+            border:1px dotted var(--bord);border-radius:10px;background:var(--bouton);box-shadow:var(--ombre);cursor:pointer}
+
+    /* ----- contenu ----- */
+    .contenu{margin-left:165px;padding:32px 28px;max-width:1000px}
+    .carte{background:var(--fond);border-radius:14px;box-shadow:var(--ombre);padding:22px;margin-bottom:22px}
+    .infos{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:12px 0}
+    .infos dt{font-weight:700;color:var(--marine)}
+    .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:16px 0}
+    .stat{background:var(--bouton);border:1px dotted var(--bord);border-radius:12px;padding:14px;text-align:center}
+    .stat b{display:block;font-size:2rem;color:var(--orange)}
+
+    /* ----- formulaires et boutons ----- */
+    label{display:block;font-weight:700;margin:12px 0 4px;color:var(--marine)}
+    .champ,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--bord);border-radius:10px;
+         background:var(--fond);font:inherit;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)}
+    input,select,textarea{background:var(--fond);color:var(--texte)}
+    .champ:focus,select:focus,textarea:focus{outline:2px solid var(--orange)}
+    .btn{display:inline-block;padding:10px 22px;border:1px dotted var(--marine);border-radius:10px;background:var(--bouton);
+         color:var(--marine);font:inherit;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:var(--ombre)}
+    .btn:hover{background:#fff1dc}
+    .btn-2{border-color:var(--bord);color:var(--violet)}
+    .btn-danger{color:#b00020;border-color:#b00020}
+    .boutons{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+    .apercu,.photo-profil{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-top:10px;box-shadow:var(--ombre)}
+    .photo-profil{width:110px;height:110px}
+    #qr{display:inline-block;padding:10px;background:#fff;border-radius:10px;box-shadow:var(--ombre)}
+    [hidden]{display:none!important}
+
+    /* ----- page d'accueil publique (index) ----- */
+    .hero{text-align:center;padding:10px 0}
+    .hero h1 span{color:var(--orange)}
+    .logo-grand{width:230px;max-width:70%;margin:24px auto;display:block}
+
+    /* ----- fenêtres et messages ----- */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:14px}
+    .modal-box{background:var(--fond);border-radius:14px;box-shadow:var(--ombre);padding:20px;width:min(380px,100%);text-align:center}
+    .toast{position:fixed;right:18px;bottom:18px;padding:12px 18px;border-radius:10px;background:var(--bouton);
+           border-left:5px solid var(--vert);box-shadow:var(--ombre);z-index:200;font-weight:700}
+    .toast.err{border-left-color:#b00020}
+
+    @media (max-width:860px){
+      .nav{transform:translateX(-100%)} .nav.ouvert{transform:none}
+      .contenu{margin-left:0;padding:70px 16px 24px} .burger{display:block}
+      h1{font-size:1.6rem}
+    }
+</style>
+</head>
+<body data-page="accueil" data-auth="1">
+  <div id="nav-root"></div>
+  <main class="contenu">
+
+    <h1 id="bienvenue">Bonjour</h1>
+    <p id="role-actuel"></p>
+    <div class="stats">
+      <div class="stat"><b id="stat-transp">0</b>transporteurs</div>
+      <div class="stat"><b id="stat-ach">0</b>acheteurs</div>
+      <div class="stat"><b id="stat-tours">0</b>tours aujourd'hui</div>
+    </div>
+    <div class="carte">
+      <h2>Votre espace</h2>
+      <p>Utilisez le menu à gauche pour naviguer, ou allez directement à votre page de travail.</p>
+      <div class="boutons"><a class="btn" id="raccourci" href="#"></a></div>
+    </div>
+  </main>
+<script src="app.js"></script>
+</body>
+</html>

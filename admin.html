@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Application installable (PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#f28c00">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SƆBUNU">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Admin - SƆBUNU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===== SƆBUNU : couleurs prises sur la capture d'écran ===== */
+    :root{
+      --fond:#fefbf8;              /* couleur de fond de la capture */
+      --bouton:#f7f9f1;            /* fond des boutons de la capture */
+      --ombre:0 2px 10px rgba(0,0,0,.18);   /* box-shadow */
+      --marine:#0b1a4a; --orange:#f28c00; --vert:#1f9d3a; --violet:#7030a0;
+      --texte:#232323; --bord:#cfc8bc;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Poppins','Segoe UI',Arial,sans-serif;background:var(--fond);color:var(--texte);line-height:1.55}
+    h1,h2,h3,.titre{font-family:'Poppins','Segoe UI',Arial,sans-serif;color:var(--violet);font-weight:600}
+    h1{font-size:1.9rem;line-height:1.25} h2{font-size:1.4rem;margin-bottom:10px} h3{font-size:1.15rem;margin-bottom:8px}
+    a{color:var(--marine)}
+
+    /* ----- navbar verticale ----- */
+    .nav{position:fixed;top:0;left:0;bottom:0;width:165px;background:var(--fond);box-shadow:var(--ombre);
+         padding:10px;overflow-y:auto;z-index:50;display:flex;flex-direction:column;gap:6px;transition:transform .25s}
+    .nav-tete{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .nav-tete img{width:48px;height:48px;object-fit:contain}
+    .nav-tete strong{font-size:1.1rem}
+    .nav-btn,.nav-lien{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px dotted var(--bord);
+         border-radius:10px;background:var(--bouton);color:var(--marine);font:inherit;font-weight:700;cursor:pointer;
+         text-decoration:none;text-align:left}
+    .nav-btn:hover,.nav-lien:hover{box-shadow:var(--ombre)}
+    .nav-lien.actif{border-color:var(--orange);color:var(--orange)}
+    .nav img{width:22px;height:22px;object-fit:contain}
+    .nav-tete img{width:48px;height:48px}
+    .emoji{width:22px;text-align:center}
+    .fleche{margin-left:auto;font-style:normal;transition:transform .2s}
+    .groupe.ouvert .fleche{transform:rotate(180deg)}
+    .sous{display:none;flex-direction:column;gap:5px;padding:6px 0 4px 16px}
+    .groupe.ouvert .sous{display:flex}
+    .nav-pied{margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:12px;font-size:.85rem}
+    .burger{display:none;position:fixed;top:10px;left:10px;z-index:60;width:42px;height:42px;font-size:1.4rem;
+            border:1px dotted var(--bord);border-radius:10px;background:var(--bouton);box-shadow:var(--ombre);cursor:pointer}
+
+    /* ----- contenu ----- */
+    .contenu{margin-left:165px;padding:32px 28px;max-width:1000px}
+    .carte{background:var(--fond);border-radius:14px;box-shadow:var(--ombre);padding:22px;margin-bottom:22px}
+    .infos{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:12px 0}
+    .infos dt{font-weight:700;color:var(--marine)}
+    .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:16px 0}
+    .stat{background:var(--bouton);border:1px dotted var(--bord);border-radius:12px;padding:14px;text-align:center}
+    .stat b{display:block;font-size:2rem;color:var(--orange)}
+
+    /* ----- formulaires et boutons ----- */
+    label{display:block;font-weight:700;margin:12px 0 4px;color:var(--marine)}
+    .champ,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--bord);border-radius:10px;
+         background:var(--fond);font:inherit;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)}
+    input,select,textarea{background:var(--fond);color:var(--texte)}
+    .champ:focus,select:focus,textarea:focus{outline:2px solid var(--orange)}
+    .btn{display:inline-block;padding:10px 22px;border:1px dotted var(--marine);border-radius:10px;background:var(--bouton);
+         color:var(--marine);font:inherit;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:var(--ombre)}
+    .btn:hover{background:#fff1dc}
+    .btn-2{border-color:var(--bord);color:var(--violet)}
+    .btn-danger{color:#b00020;border-color:#b00020}
+    .boutons{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+    .apercu,.photo-profil{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-top:10px;box-shadow:var(--ombre)}
+    .photo-profil{width:110px;height:110px}
+    #qr{display:inline-block;padding:10px;background:#fff;border-radius:10px;box-shadow:var(--ombre)}
+    [hidden]{display:none!important}
+
+    /* ----- page d'accueil publique (index) ----- */
+    .hero{text-align:center;padding:10px 0}
+    .hero h1 span{color:var(--orange)}
+    .logo-grand{width:230px;max-width:70%;margin:24px auto;display:block}
+
+    /* ----- fenêtres et messages ----- */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:14px}
+    .modal-box{background:var(--fond);border-radius:14px;box-shadow:var(--ombre);padding:20px;width:min(380px,100%);text-align:center}
+    .toast{position:fixed;right:18px;bottom:18px;padding:12px 18px;border-radius:10px;background:var(--bouton);
+           border-left:5px solid var(--vert);box-shadow:var(--ombre);z-index:200;font-weight:700}
+    .toast.err{border-left-color:#b00020}
+
+    @media (max-width:860px){
+      .nav{transform:translateX(-100%)} .nav.ouvert{transform:none}
+      .contenu{margin-left:0;padding:70px 16px 24px} .burger{display:block}
+      h1{font-size:1.6rem}
+    }
+    /* zone réservée : le contenu reste caché tant que le code n'est pas saisi */
+    body[data-zone="1"]:not(.zone-prete) .contenu{visibility:hidden}
+    /* récapitulatif des déclarations */
+    .tableau{width:100%;border-collapse:collapse;margin-top:8px}
+    .tableau th,.tableau td{padding:10px 12px;text-align:left;border-bottom:1px dotted var(--bord)}
+    .tableau th{background:var(--bouton);color:var(--marine);font-weight:700}
+    .tableau td.num,.tableau th.num{text-align:right}
+    .tableau .jour td{background:#fff1dc;font-weight:700;color:var(--marine)}
+    .tableau .total-jour td{font-weight:700;color:var(--vert);border-bottom:2px solid var(--bord)}
+    .tableau tfoot td{font-weight:700;color:var(--marine);border-top:2px solid var(--bord);border-bottom:0}
+    .tableau .vide{text-align:center;font-style:italic;color:#777}
+    .recap-tete{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .recap-tete h2{margin-bottom:0}
+    .recap-filtre{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin:8px 0}
+    .recap-filtre label{margin:0 0 4px}
+    @media print{
+      #nav-root,.nav,.burger,.toast,.modal,.no-print,.contenu > :not(#bloc-recap-decl){display:none!important}
+      body{background:#fff}
+      .contenu{margin:0;padding:0;max-width:none;visibility:visible!important}
+      #bloc-recap-decl{box-shadow:none;padding:0}
+    }
+    /* messages reçus par le formulaire de contact */
+    .msg-ligne{border:1px dotted var(--bord);border-radius:12px;background:var(--bouton);padding:14px;margin-top:12px}
+    .msg-ligne.traite{opacity:.8}
+    .msg-tete{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
+    .msg-tete small{color:#777}
+    .msg-etat{margin-left:auto;font-weight:700;color:var(--vert)}
+    .msg-etat.nouveau{color:var(--orange)}
+    .msg-texte{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+</style>
+</head>
+<body data-page="admin" data-auth="1" data-roles="admin" data-zone="1">
+  <div id="nav-root"></div>
+  <main class="contenu">
+
+    <h1>Espace administrateur</h1>
+    <div id="carrousel" data-carrousel="admin"></div>
+    <div class="carte" id="bloc-journee">
+      <h2>Journée de transport</h2>
+      <p>La journée commence à 5h et s'achève à 19h. Au clic, une fenêtre d'une minute annonce l'ouverture de la journée aux utilisateurs connectés, sur toutes les pages.</p>
+      <p><b id="journee-etat"></b></p>
+      <div class="boutons"><button class="btn" id="journee-ouvrir" type="button">📢 Déclarer la journée ouverte</button></div>
+    </div>
+    <div class="carte" id="bloc-moderateurs">
+      <h2>Modérateurs</h2>
+      <p>Les modérateurs s'inscrivent comme les autres comptes. Validez ici ceux qui doivent devenir modérateurs.</p>
+      <label for="choix-mod">Comptes modérateur</label><select id="choix-mod"></select>
+      <div class="boutons">
+        <button class="btn" id="mod-valider" type="button">Valider comme modérateur</button>
+        <button class="btn btn-2" id="mod-retirer" type="button">Retirer le rôle de modérateur</button>
+      </div>
+    </div>
+    <div class="carte">
+      <label for="choix">Acheteurs</label><select id="choix"></select>
+      <div id="fiche" hidden>
+        <dl class="infos">
+          <dt>NPI</dt><dd data-champ="npi"></dd>
+          <dt>Nom et prénom</dt><dd data-champ="nom"></dd>
+          <dt>Téléphone</dt><dd data-champ="tel"></dd>
+          <dt>Sacs déclarés (total)</dt><dd data-champ="sacsDeclares"></dd>
+          <dt>Dédouanement payé (total)</dt><dd data-champ="somme"></dd>
+        </dl>
+        <div id="qr"></div>
+      </div>
+      <div class="boutons"><button class="btn btn-danger" id="supprimer" type="button" data-i18n="delete_buyer">Supprimer le compte acheteur</button></div>
+    </div>
+    <div class="carte" id="bloc-recap-decl">
+      <div class="recap-tete">
+        <h2>Récapitulatif des déclarations des acheteurs</h2>
+        <button class="btn btn-2 no-print" id="recap-imprimer" type="button">🖨️ Imprimer</button>
+      </div>
+      <a class="no-print" id="wa-ouvrir" href="#" target="_blank" rel="noopener" hidden>Ouvrir le groupe WhatsApp</a>
+      <p>Nombre de sacs déclaré et montant du dédouanement payé par chaque acheteur, avec le total de chaque journée.</p>
+      <div class="recap-filtre no-print">
+        <div><label for="recap-date">Filtrer par date</label><input class="champ" id="recap-date" type="date" style="width:200px"></div>
+        <button class="btn btn-2" id="recap-toutes" type="button">Toutes les dates</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tableau" id="recap-table">
+          <thead><tr><th>Acheteur</th><th>NPI</th><th class="num">Nombre de sacs</th><th class="num">Montant du dédouanement</th></tr></thead>
+          <tbody id="recap-corps"></tbody>
+          <tfoot id="recap-pied"></tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="carte" id="bloc-messages">
+      <div class="recap-tete">
+        <h2>Messages des utilisateurs</h2>
+        <button class="btn btn-2" id="msg-actualiser" type="button">🔄 Actualiser</button>
+      </div>
+      <p>Messages envoyés depuis la page Contact. Écrivez votre réponse, puis « Répondre par e-mail » ouvre votre messagerie avec le message prêt à envoyer.</p>
+      <p><b id="msg-compte"></b></p>
+      <label for="msg-filtre">Afficher</label>
+      <select id="msg-filtre"><option value="nouveaux">Messages à traiter</option><option value="tous">Tous les messages</option></select>
+      <div id="msg-liste"></div>
+    </div>
+    <div class="carte" id="bloc-comptes">
+      <h2>Mot de passe d'un compte</h2>
+      <p>Un utilisateur a oublié son mot de passe : définissez-en un nouveau, puis communiquez-le lui.</p>
+      <label for="reset-compte">Compte</label><select id="reset-compte"></select>
+      <label for="reset-mdp">Nouveau mot de passe (6 caractères minimum)</label>
+      <input class="champ" id="reset-mdp" type="password" autocomplete="new-password" style="max-width:320px">
+      <div class="boutons"><button class="btn" id="reset-valider" type="button">Définir le mot de passe</button></div>
+    </div>
+    <div class="carte" id="bloc-verrous">
+      <h2>Comptes verrouillés</h2>
+      <p>Un compte inactif depuis plus d'un an est verrouillé à sa prochaine connexion. Vous pouvez le rouvrir ici.</p>
+      <label for="choix-verrou">Compte verrouillé</label><select id="choix-verrou"></select>
+      <div class="boutons"><button class="btn" id="verrou-debloquer" type="button">Déverrouiller</button></div>
+    </div>
+    <div class="carte" id="bloc-wa">
+      <h2>Groupe WhatsApp</h2>
+      <label for="wa-lien">Lien d'invitation du groupe</label>
+      <input class="champ" id="wa-lien" type="url" placeholder="https://chat.whatsapp.com/..." autocomplete="off">
+      <div class="boutons"><button class="btn" id="wa-enregistrer" type="button">Enregistrer le lien</button></div>
+      <p><small>Le bouton « Imprimer » du récapitulatif envoie aussi le PDF vers WhatsApp. Laissez vide pour désactiver l'envoi.</small></p>
+    </div>
+    <div class="carte" id="bloc-carrousel">
+      <h2>Images des pages</h2>
+      <p>Choisissez une page : ses images défilent en haut de la page (une nouvelle image chaque minute). Au moins 5 images sont toujours affichées : si vous en ajoutez moins, des images par défaut complètent.</p>
+      <label for="car-page">Page</label>
+      <select id="car-page">
+        <option value="">-- Choisir une page --</option>
+        <option value="acheteur">Acheteur</option>
+        <option value="admin">Administrateur</option>
+        <option value="moderateur">Modérateur</option>
+        <option value="transporteur">Transporteur</option>
+      </select>
+      <div id="car-gestion" hidden>
+        <p><b id="car-compte"></b></p>
+        <div id="car-liste" class="car-liste"></div>
+        <label for="car-ajout">Ajouter des images</label>
+        <input id="car-ajout" type="file" accept="image/*" multiple>
+        <p><small>Les images sont réduites automatiquement. Les autres appareils voient le changement en moins d'une minute.</small></p>
+      </div>
+    </div>
+    <div class="carte">
+      <h2>Logo du site</h2>
+      <label for="logo-fichier" data-i18n="change_logo">Changer le logo</label>
+      <input id="logo-fichier" type="file" accept="image/*">
+      <div class="boutons"><button class="btn btn-2" id="logo-reset" type="button">Rétablir le logo par défaut</button></div>
+    </div>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
