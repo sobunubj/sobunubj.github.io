@@ -372,7 +372,7 @@ const Sync = {
       u.tarifs = obj(u.tarifs);
       if (u.declarations) u.declarations = Object.values(u.declarations);
     }
-    if (u.role === 'transporteur') { u.toursAch = obj(u.toursAch); u.gainAch = obj(u.gainAch); u.sacsAch = obj(u.sacsAch); u.sacsAvis = obj(u.sacsAvis); }
+    if (u.role === 'transporteur') { u.toursAch = obj(u.toursAch); u.gainAch = obj(u.gainAch); u.sacsAch = obj(u.sacsAch); u.sacsAvis = obj(u.sacsAvis); u.payeAch = obj(u.payeAch); }
     return u;
   },
   async tirerUsers() {
@@ -452,13 +452,15 @@ const Sync = {
       const zeros = m => Object.fromEntries(Object.keys(m || {}).map(k => [k, 0]));
       await this.ecrire('PATCH', '/users/' + t.npi, {
         jour: auj, tours: 0, gainJour: 0, sacsJour: 0,
-        gainAch: zeros(t.gainAch), toursAch: zeros(t.toursAch), sacsAch: zeros(t.sacsAch)
+        gainAch: zeros(t.gainAch), toursAch: zeros(t.toursAch), sacsAch: zeros(t.sacsAch),
+        payeAch: Object.fromEntries(Object.keys(t.payeAch || {}).map(k => [k, false]))
       });
     }
     const corps = { tours: inc(1), sacsJour: inc(nb), gainJour: inc(prix) };
     corps['toursAch/' + npiA] = inc(1);
     corps['sacsAch/' + npiA] = inc(nb);
     corps['gainAch/' + npiA] = inc(prix);
+    corps['payeAch/' + npiA] = false;                 // le gain a augmenté : il reste à payer
     await this.ecrire('PATCH', '/users/' + t.npi, corps);
   }
 };
@@ -756,6 +758,24 @@ const Compte = {
     DB.ecrire('sobunu_journee', j);
   },
 
+  /* Bouton « Payé » : marque (ou démarque) le gain du jour d'un transporteur comme payé pour UN acheteur.
+     L'état est enregistré sur la fiche du transporteur (payeAch = { NPI_acheteur: true/false }) :
+     le modérateur et l'acheteur voient donc le même état. */
+  async basculerPaye(npiT, npiA) {
+    if (Sync.actif()) await Sync.tirerUsers();
+    const t = DB.trouver(npiT);
+    if (!t || t.role !== 'transporteur') throw this._erreur('sobunu/qr', 'Transporteur introuvable.');
+    t.payeAch = t.payeAch || {};
+    const avant = !!t.payeAch[npiA], v = !avant;
+    t.payeAch[npiA] = v;
+    DB.enregistrer(t, true);
+    if (Sync.actif()) {
+      try { await Sync.ecrire('PATCH', '/users/' + npiT, { ['payeAch/' + npiA]: v }); }
+      catch (e) { t.payeAch[npiA] = avant; DB.enregistrer(t, true); throw e; }
+    }
+    return v;
+  },
+
   /* Valide un tour : +1 tour, + les sacs du tour, + le gain (montant fixé par l'acheteur).
      Chaque scan s'AJOUTE aux totaux : total du transporteur ET détail de l'acheteur concerné. */
   async validerTour(npi, npiA, npiMod) {
@@ -782,6 +802,8 @@ const Compte = {
     t.toursAch = t.toursAch || {};
     t.gainAch = t.gainAch || {};
     t.sacsAch = t.sacsAch || {};
+    t.payeAch = t.payeAch || {};
+    t.payeAch[npiA] = false;
     t.tours = (t.tours || 0) + 1;
     t.toursAch[npiA] = (t.toursAch[npiA] || 0) + 1;
     t.sacsAch[npiA] = (t.sacsAch[npiA] || 0) + nb;
@@ -813,6 +835,7 @@ function majJour(u) {
     u.gainAch = Object.fromEntries(Object.keys(u.gainAch || {}).map(k => [k, 0]));       // gains remis à 0 pour chaque acheteur
     u.toursAch = Object.fromEntries(Object.keys(u.toursAch || {}).map(k => [k, 0]));   // tours remis à 0 pour chaque acheteur
     u.sacsAch = Object.fromEntries(Object.keys(u.sacsAch || {}).map(k => [k, 0]));     // sacs remis à 0 pour chaque acheteur
+    u.payeAch = Object.fromEntries(Object.keys(u.payeAch || {}).map(k => [k, false])); // « payé » remis à non payé
     DB.enregistrer(u, true);   // affichage local seulement : la remise à zéro du serveur se fait au 1er tour du jour (voir Sync.compterTour)
   }
   return u;
@@ -860,6 +883,25 @@ function totauxJour(t) {
     sacs: t.sacsJour || 0
   };
 }
+/* Bouton « Payé » d'une fiche transporteur (#btn-paye) pour l'acheteur npiA.
+   Gris/vert = pas payé ; greenyellow/blanc = payé. Même rendu sur la page modérateur et la page acheteur. */
+function majBoutonPaye(zone, t, npiA) {
+  const b = $('#btn-paye', zone);
+  if (!b) return;
+  if (!t || !npiA) { b.hidden = true; return; }
+  const paye = !!(t.payeAch || {})[npiA];
+  b.hidden = false;
+  b.classList.toggle('paye', paye);
+  b.setAttribute('aria-pressed', paye ? 'true' : 'false');
+  b.onclick = async () => {
+    b.disabled = true;
+    try { await Compte.basculerPaye(t.npi, npiA); }
+    catch (e) { console.error('[paye]', e); toast((e && e.message) || 'Paiement non enregistré.', 'err'); }
+    b.disabled = false;
+    majBoutonPaye(zone, DB.trouver(t.npi), npiA);
+  };
+}
+
 /* Affiche le détail par acheteur, le nombre de tours total et le gain journalier total */
 function completerFiche(zone, t) {
   const tot = totauxJour(t);
@@ -1617,6 +1659,7 @@ PAGES.moderateur = function () {
         : x.n + (x.statut === 'rejete' ? ' (rejeté par l\'acheteur)' : ' (en attente de validation par l\'acheteur)');
     }
     completerFiche($('#fiche'), t);
+    majBoutonPaye($('#fiche'), t, aMod ? aMod.npi : null);   // « Payé » pour l'acheteur du modérateur
   }
   sel.onchange = () => afficher(sel.value);
 
@@ -1834,6 +1877,7 @@ PAGES.acheteur = function () {
       dd.innerHTML = '<b style="color:var(--vert)">' + dd.textContent + '</b>';
       $('[data-champ="sacsAch"]', $('#fiche')).textContent = t.sacsJour || 0;
     }
+    majBoutonPaye($('#fiche'), t, estAdmin ? null : moi.npi);
   }
   function sauver() { if (moi.role !== 'admin') DB.enregistrer(moi); }
 

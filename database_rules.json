@@ -71,6 +71,13 @@
               ".validate": "newData.isNumber()"
             }
           },
+          "payeAch": {
+            ".write": "(auth != null && root.child('sobunu/users/' + (auth.token.email.toLowerCase().matches(/^.*@sobunu\\.app$/) && !root.child('sobunu/mails/' + auth.token.email.replace('@sobunu.app','')).exists() ? auth.token.email.replace('@sobunu.app','') : root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val()) + '/role').val() == 'moderateur' && root.child('sobunu/users/' + (auth.token.email.toLowerCase().matches(/^.*@sobunu\\.app$/) && !root.child('sobunu/mails/' + auth.token.email.replace('@sobunu.app','')).exists() ? auth.token.email.replace('@sobunu.app','') : root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val()) + '/acheteur').exists()) || (auth != null && root.child('sobunu/users/' + (auth.token.email.toLowerCase().matches(/^.*@sobunu\\.app$/) && !root.child('sobunu/mails/' + auth.token.email.replace('@sobunu.app','')).exists() ? auth.token.email.replace('@sobunu.app','') : root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val()) + '/role').val() == 'admin')",
+            "$a": {
+              ".write": "auth != null && root.child('sobunu/users/' + (auth.token.email.toLowerCase().matches(/^.*@sobunu\\.app$/) && !root.child('sobunu/mails/' + auth.token.email.replace('@sobunu.app','')).exists() ? auth.token.email.replace('@sobunu.app','') : root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val()) + '/role').val() == 'acheteur' && (auth.token.email.toLowerCase().matches(/^.*@sobunu\\.app$/) && !root.child('sobunu/mails/' + auth.token.email.replace('@sobunu.app','')).exists() ? auth.token.email.replace('@sobunu.app','') : root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val()) == $a",
+              ".validate": "newData.isBoolean()"
+            }
+          },
           "transporteurs": {
             ".write": "(auth != null && (root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val() == $npi || (auth.token.email == $npi + '@sobunu.app' && !root.child('sobunu/mails/' + $npi).exists() && root.child('sobunu/users/' + $npi).exists()))) || (auth != null && root.child('sobunu/users/' + (auth.token.email.toLowerCase().matches(/^.*@sobunu\\.app$/) && !root.child('sobunu/mails/' + auth.token.email.replace('@sobunu.app','')).exists() ? auth.token.email.replace('@sobunu.app','') : root.child('sobunu/emails/' + auth.token.email.toLowerCase().replace('.', ',')).val()) + '/role').val() == 'admin')"
           },
