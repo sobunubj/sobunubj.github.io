@@ -127,9 +127,17 @@
         <dt>Nom et prénom</dt><dd data-champ="nom"></dd>
         <dt>Téléphone</dt><dd data-champ="tel"></dd>
         <dt>Nombre de sacs</dt>
-        <dd><select id="sacs" data-champ="sacs" style="width:100%;max-width:100%">
-          <option value="2">Deux sacs</option><option value="3">Trois sacs</option><option value="4">Quatre sacs</option><option value="8">Huit sacs</option><option value="10">Dix sacs</option>
-        </select></dd>
+        <dd>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+            <select id="sacs" data-champ="sacs" style="flex:1 1 150px;width:auto;max-width:100%">
+              <option value="2">Deux sacs</option><option value="3">Trois sacs</option><option value="4">Quatre sacs</option><option value="8">Huit sacs</option><option value="10">Dix sacs</option><option value="">Autre nombre…</option>
+            </select>
+            <input class="champ" id="sacs-saisie" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Autre nombre" aria-label="Nombre de sacs en chiffres" style="flex:1 1 110px;width:auto;max-width:100%">
+            <button class="btn" id="sacs-envoyer" type="button">Envoyer</button>
+          </div>
+          <small>Votre nombre n'est pas dans la liste ? Inscrivez-le en chiffres : l'acheteur devra le valider.</small>
+          <div id="sacs-statut" style="margin-top:6px"></div>
+        </dd>
         <dt>Nombre de tours (total)</dt><dd data-champ="tours"></dd>
         <dt>Nombre de sacs transportés (total)</dt><dd data-champ="sacsJour"></dd>
         <dt>Gain journalier (total)</dt><dd data-champ="gain"></dd>

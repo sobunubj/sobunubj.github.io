@@ -2,7 +2,7 @@
    Réseau d'abord : les mises à jour du site arrivent tout de suite ; le cache ne sert que sans connexion.
    Les données (Firebase) ne passent JAMAIS par ici : elles restent toujours en direct.
    Quand vous modifiez le site, changez simplement le numéro de VERSION ci-dessous. */
-const VERSION = 'sobunu-v4';
+const VERSION = 'sobunu-v5';
 const FICHIERS = [
   'index.html', 'accueil.html', 'a-propos.html', 'contact.html', 'connexion.html', 'inscription.html', 'profil.html',
   'transporteur.html', 'acheteur.html', 'moderateur.html', 'admin.html',
