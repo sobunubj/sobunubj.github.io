@@ -1325,6 +1325,16 @@ function construireNav() {
   $$('.nav-btn').forEach(b => b.onclick = () => b.parentElement.classList.toggle('ouvert'));
   // menu mobile
   $('#burger').onclick = () => $('#nav').classList.toggle('ouvert');
+  // un toucher / clic en dehors de la navbar la referme (smartphone et tablette)
+  if (!window.__navFermeture) {
+    window.__navFermeture = true;
+    document.addEventListener('pointerdown', e => {
+      const nav = $('#nav');
+      if (!nav || !nav.classList.contains('ouvert')) return;
+      if (e.target.closest('#nav') || e.target.closest('#burger')) return;
+      nav.classList.remove('ouvert');
+    });
+  }
   if ($('#nav-deco')) $('#nav-deco').onclick = deconnexion;
 }
 
