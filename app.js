@@ -300,6 +300,28 @@ function demanderChamps(titre, info, champs) {
    - Un tour validé utilise des compteurs ATOMIQUES (increment) : deux scans simultanés s'additionnent.
    - Toutes les 3 s, chaque page relit les fiches : un scan apparaît donc partout.
    -------------------------------------------------------------------------- */
+/* Fiche complète : tous les comptes d'un même rôle ont exactement les mêmes champs, qu'ils soient nouveaux ou anciens.
+   (Firebase supprime les listes/objets vides : on les remet en forme à chaque lecture.) */
+function ficheComplete(u) {
+  if (!u || typeof u !== 'object') return u;
+  const nb = k => { u[k] = Number(u[k]) || 0; };
+  const obj = k => { if (!u[k] || typeof u[k] !== 'object' || Array.isArray(u[k])) u[k] = {}; };
+  if (!u.lang) u.lang = 'fr';
+  if (u.role === 'transporteur') {
+    u.sacs = [2, 3, 4, 8, 10].includes(Number(u.sacs)) ? Number(u.sacs) : 2;
+    nb('tours'); nb('gainJour'); nb('sacsJour');
+    if (!u.jour) u.jour = aujourdhui();
+    obj('toursAch'); obj('gainAch'); obj('sacsAch');
+  }
+  if (u.role === 'acheteur') {
+    if (!Array.isArray(u.transporteurs)) u.transporteurs = Object.values(u.transporteurs || {});
+    obj('tarifs');
+    nb('sacsDeclares'); nb('somme');
+    if (!Array.isArray(u.declarations)) u.declarations = u.declaration ? [u.declaration] : [];
+  }
+  return u;
+}
+
 const Sync = {
   file: Promise.resolve(), enCours: 0, enPull: null,
   actif() { return !!String(CONFIG.SYNC_URL || '').trim(); },
@@ -373,7 +395,7 @@ const Sync = {
       if (u.declarations) u.declarations = Object.values(u.declarations);
     }
     if (u.role === 'transporteur') { u.toursAch = obj(u.toursAch); u.gainAch = obj(u.gainAch); u.sacsAch = obj(u.sacsAch); }
-    return u;
+    return ficheComplete(u);
   },
   async tirerUsers() {
     await this.file;                                  // on attend nos propres envois avant de relire
@@ -1401,6 +1423,7 @@ PAGES.inscription = function () {
     const user = { npi, nom, tel, role: role === 'moderateur' ? 'moderateur_attente' : role, photo, lang: 'fr', derniereConnexion: Date.now() };   // pas de mot de passe ici
     if (role === 'transporteur') Object.assign(user, { sacs: 2, tours: 0, gainJour: 0, jour: aujourdhui() });
     if (role === 'acheteur') Object.assign(user, { transporteurs: [], tarifs: {}, sacsDeclares: 0, somme: 0 });
+    ficheComplete(user);   // mêmes champs que tous les autres comptes du même rôle
 
     try {
       if (role === 'admin') {
