@@ -604,12 +604,26 @@ const Compte = {
     catch (e) {
       if (e.code !== 'auth/email-already-in-use') throw e;
       /* Le compte Firebase existe : s'il n'a plus de fiche (supprimée par l'admin), son titulaire peut se réinscrire avec le même mot de passe */
-      try { await Auth.signIn(email, mdp, user.npi); authNouveau = false; } catch (e2) { throw e; }
+      try { await Auth.signIn(email, mdp, user.npi); authNouveau = false; }
+      catch (e2) {
+        if (e2.code !== 'auth/invalid-credential') throw e2;     // réseau, trop de tentatives... : on garde la vraie erreur
+        throw this._erreur('sobunu/email-auth-existe', 'Cet e-mail existe encore dans Firebase Authentication avec un autre mot de passe (compte supprimé du site mais pas de Firebase).');
+      }
     }
     const etat = { cle: false, mail: false, tel: false, fiche: false };
     try {
       await Sync.tirerUsers();
-      if (DB.trouver(user.npi)) throw this._erreur('sobunu/npi-utilise');
+      if (DB.trouver(user.npi)) {
+        /* Compte Firebase NOUVEAU + ce NPI est encore relié à CET e-mail : c'est l'ancienne fiche du même titulaire (son compte Firebase a été supprimé).
+           Elle est inutilisable : on la supprime et on recommence l'inscription. */
+        let lie = null;
+        if (authNouveau) { try { lie = await Sync.req('GET', '/emails/' + cle); } catch (e) { /* ignoré */ } }
+        if (lie !== user.npi) throw this._erreur('sobunu/npi-utilise');
+        await Sync.ecrire('DELETE', '/users/' + user.npi);
+        try { await Sync.ecrire('DELETE', '/photos/' + user.npi); } catch (e) { /* ignoré */ }
+        try { await Sync.ecrire('DELETE', '/zones/' + user.npi); } catch (e) { /* ignoré */ }
+        DB.ecrire('sobunu_users', DB.users().filter(u => u.npi !== user.npi));
+      }
       if (DB.trouverParTel(user.tel)) throw this._erreur('sobunu/tel-utilise');
       /* Compte Firebase déjà existant (mêmes identifiants) : si l'e-mail est encore rattaché à une fiche bien vivante, il est vraiment pris.
          Compte Firebase NOUVEAU : l'e-mail n'existait plus dans Authentication, donc tout ancien lien /emails restant est périmé et sera remplacé. */
@@ -619,7 +633,7 @@ const Compte = {
         if (typeof ancien === 'string' && ancien !== user.npi && DB.trouver(ancien)) throw this._erreur('auth/email-already-in-use');
       }
       try { await Sync.ecrire('PUT', '/emails/' + cle, user.npi); }          // e-mail -> NPI (remplace un ancien lien périmé)
-      catch (e) { throw e.code === 'sobunu/refuse' ? this._erreur('auth/email-already-in-use') : e; }
+      catch (e) { throw e.code === 'sobunu/refuse' ? this._erreur('sobunu/email-refuse', 'Firebase a refusé l\'enregistrement de cet e-mail : publiez la dernière version de database_rules.json (Realtime Database > Règles).') : e; }
       etat.cle = true;
       await Sync.ecrire('PUT', '/mails/' + user.npi, email);                 // NPI -> e-mail (sert à se connecter avec le NPI)
       etat.mail = true;
@@ -1400,6 +1414,11 @@ PAGES.inscription = function () {
     } catch (err) {
       console.error(err);
       toast(messageErreur(err), 'err');
+      if (err && err.code === 'sobunu/email-auth-existe' &&
+          confirm(messageErreur(err) + '\n\nEnvoyer un lien de réinitialisation à ' + email + ' ? Après avoir choisi un mot de passe, revenez vous inscrire avec ce mot de passe.')) {
+        try { await Auth.mdpOublie(email); toast('Lien envoyé : consultez votre messagerie (et les courriers indésirables).'); }
+        catch (e2) { toast(messageErreur(e2), 'err'); }
+      }
     }
   };
 };
