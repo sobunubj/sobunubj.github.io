@@ -149,20 +149,6 @@
         <button class="btn btn-2" id="mod-retirer" type="button">Retirer le rôle de modérateur</button>
       </div>
     </div>
-    <div class="carte">
-      <label for="choix">Acheteurs</label><select id="choix"></select>
-      <div id="fiche" hidden>
-        <dl class="infos">
-          <dt>NPI</dt><dd data-champ="npi"></dd>
-          <dt>Nom et prénom</dt><dd data-champ="nom"></dd>
-          <dt>Téléphone</dt><dd data-champ="tel"></dd>
-          <dt>Sacs déclarés (total)</dt><dd data-champ="sacsDeclares"></dd>
-          <dt>Dédouanement payé (total)</dt><dd data-champ="somme"></dd>
-        </dl>
-        <div id="qr"></div>
-      </div>
-      <div class="boutons"><button class="btn btn-danger" id="supprimer" type="button" data-i18n="delete_buyer">Supprimer le compte acheteur</button></div>
-    </div>
     <div class="carte" id="bloc-recap-decl">
       <div class="recap-tete">
         <h2>Récapitulatif des déclarations des acheteurs</h2>
@@ -238,6 +224,23 @@
       <label for="logo-fichier" data-i18n="change_logo">Changer le logo</label>
       <input id="logo-fichier" type="file" accept="image/*">
       <div class="boutons"><button class="btn btn-2" id="logo-reset" type="button">Rétablir le logo par défaut</button></div>
+    </div>
+    <div class="carte" id="bloc-suppression">
+      <h2>Supprimer un compte</h2>
+      <p>Tous les comptes du site peuvent être supprimés (acheteur, transporteur, modérateur), sauf le compte administrateur.</p>
+      <label for="choix">Compte</label><select id="choix"></select>
+      <div id="fiche" hidden>
+        <dl class="infos">
+          <dt>NPI</dt><dd data-champ="npi"></dd>
+          <dt>Nom et prénom</dt><dd data-champ="nom"></dd>
+          <dt>Téléphone</dt><dd data-champ="tel"></dd>
+          <dt>Rôle</dt><dd data-champ="role"></dd>
+          <dt class="ach-seul">Sacs déclarés (total)</dt><dd class="ach-seul" data-champ="sacsDeclares"></dd>
+          <dt class="ach-seul">Dédouanement payé (total)</dt><dd class="ach-seul" data-champ="somme"></dd>
+        </dl>
+        <div id="qr"></div>
+      </div>
+      <div class="boutons"><button class="btn btn-danger" id="supprimer" type="button" data-i18n="delete_account">Supprimer un compte</button></div>
     </div>
   </main>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>

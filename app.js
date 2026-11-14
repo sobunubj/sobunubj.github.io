@@ -80,6 +80,7 @@ const I18N = {
     add_carrier: 'Add a carrier', language: 'Language', my_info: 'My information',
     send: 'Send', change_photo: 'Change photo', change_logo: 'Change logo',
     delete_buyer: 'Delete buyer account',
+    delete_account: 'Delete an account',
     tarif_title: 'Transport price', tarif_sacs: 'Number of bags', tarif_amount: 'Amount (FCFA)'
   },
 
@@ -881,14 +882,16 @@ function detailAcheteurs(t) {
   /* tous les acheteurs qui ont ce transporteur dans leur liste, plus ceux avec qui il a déjà fait des tours */
   const npis = new Set(Object.keys(m).filter(k => m[k]));
   DB.parRole('acheteur').forEach(a => { if ((a.transporteurs || []).includes(t.npi) || (t.sacsPar || {})[a.npi]) npis.add(a.npi); });
-  return [...npis].map(npi => {
-    const a = DB.trouver(npi);
-    if (!a) return null;
-    const tours = m[npi] || 0;
-    const prix = (a.tarifs || {})[sacsPour(t, npi)] || 0;
-    const g = (t.gainAch || {})[npi];                       // gain cumulé, ajouté à chaque tour scanné
-    return { npi: npi, nom: a.nom, tours: tours, sacs: (t.sacsAch || {})[npi] || 0, prix: prix, gain: g !== undefined ? g : tours * prix };
-  }).filter(Boolean);
+  return [...npis].map(npi => ligneAcheteur(t, npi)).filter(Boolean);
+}
+/* Chiffres d'un transporteur chez UN seul acheteur (tours, sacs, montant par tour, gain) */
+function ligneAcheteur(t, npi) {
+  const a = DB.trouver(npi);
+  if (!a) return null;
+  const tours = (t.toursAch || {})[npi] || 0;
+  const prix = (a.tarifs || {})[sacsPour(t, npi)] || 0;
+  const g = (t.gainAch || {})[npi];                       // gain cumulé, ajouté à chaque tour scanné
+  return { npi: npi, nom: a.nom, tours: tours, sacs: (t.sacsAch || {})[npi] || 0, prix: prix, gain: g !== undefined ? g : tours * prix };
 }
 /* Totaux du jour = somme des tours et somme des gains de chaque acheteur */
 function totauxJour(t) {
@@ -920,6 +923,24 @@ function completerFiche(zone, t) {
         '<span>Montant par tour : ' + (l.prix ? argent(l.prix) : '<em>non défini</em>') + '</span>' +
         '<span>Gain journalier : <b style="color:var(--vert)">' + argent(l.gain) + '</b></span></div>').join('')
     : '<p><em>Aucun acheteur ne vous a encore ajouté</em></p>';
+}
+
+/* Page modérateur : on n'affiche QUE les chiffres du transporteur chez l'acheteur du modérateur
+   (jamais ses tours, sacs ou gains chez les autres acheteurs). */
+function completerFicheAcheteur(zone, t, acheteur) {
+  const l = acheteur ? ligneAcheteur(t, acheteur.npi) : null;
+  const set = (champ, html) => { const el = $('[data-champ="' + champ + '"]', zone); if (el) el.innerHTML = html; };
+  set('tours', l ? l.tours : 0);
+  set('sacsJour', l ? l.sacs : 0);
+  set('gain', '<b style="color:var(--vert)">' + argent(l ? l.gain : 0) + '</b>');
+  const z = $('#detail-ach', zone);
+  if (z) z.innerHTML = l
+    ? '<div class="ach-ligne"><strong>' + esc(l.nom) + '</strong>' +
+      '<span>Tours : ' + l.tours + '</span>' +
+      '<span>Sacs transportés : ' + l.sacs + '</span>' +
+      '<span>Montant par tour : ' + (l.prix ? argent(l.prix) : '<em>non défini</em>') + '</span>' +
+      '<span>Gain journalier : <b style="color:var(--vert)">' + argent(l.gain) + '</b></span></div>'
+    : '<p><em>Vous n\'êtes rattaché à aucun acheteur.</em></p>';
 }
 
 /* --------------------------------------------------------------------------
@@ -1660,7 +1681,7 @@ PAGES.moderateur = function () {
     const aMod = monAcheteur(), nbMod = aMod ? sacsPour(t, aMod.npi) : t.sacs;      // sacs par tour chez l'acheteur du modérateur
     const champSacs = $('[data-champ="sacs"]', $('#fiche'));
     if (champSacs) champSacs.textContent = nbMod || 'En attente de validation par l\'acheteur';
-    completerFiche($('#fiche'), t);
+    completerFicheAcheteur($('#fiche'), t, aMod);   // uniquement les chiffres chez l'acheteur du modérateur
   }
   sel.onchange = () => afficher(sel.value);
 
@@ -1957,7 +1978,13 @@ PAGES.acheteur = function () {
 /* ---------- ADMIN ---------- */
 PAGES.admin = function () {
   const sel = $('#choix');
-  function liste() { remplirSelect(sel, DB.parRole('acheteur'), '-- Choisir un acheteur --'); }
+  /* Tous les comptes sauf l'administrateur : ils peuvent tous être supprimés */
+  function liste() {
+    const moi = DB.courant();
+    const comptes = DB.users().filter(x => x.role !== 'admin' && (!moi || x.npi !== moi.npi))
+      .map(x => ({ npi: x.npi, nom: x.nom + ' — ' + (ROLES[x.role] || x.role) }));
+    remplirSelect(sel, comptes, '-- Choisir un compte --');
+  }
   liste();
   const fb = Compte;
 
@@ -2213,13 +2240,17 @@ PAGES.admin = function () {
     toast('Compte déverrouillé.');
   };
 
-  sel.onchange = () => {
+  function afficherFiche() {
     const a = DB.trouver(sel.value);
-    $('#fiche').hidden = !a;
-    if (!a) return;
+    $('#fiche').hidden = !a || a.role === 'admin';
+    if (!a || a.role === 'admin') return;
     remplirChamps($('#fiche'), a);
-    creerQR($('#qr'), a.npi);
-  };
+    const ach = a.role === 'acheteur';                       // déclarations et QR : propres aux acheteurs
+    $$('.ach-seul').forEach(el => { el.hidden = !ach; });
+    $('#qr').hidden = !ach;
+    if (ach) creerQR($('#qr'), a.npi);
+  }
+  sel.onchange = afficherFiche;
 
   $('#logo-fichier').onchange = async e => {
     if (!e.target.files[0]) return;
@@ -2233,11 +2264,12 @@ PAGES.admin = function () {
 
   $('#supprimer').onclick = () => {
     const a = DB.trouver(sel.value);
-    if (!a) return toast('Choisissez un acheteur.', 'err');
-    if (!confirm('Supprimer définitivement le compte de ' + a.nom + ' ?')) return;
+    if (!a) return toast('Choisissez un compte.', 'err');
+    if (a.role === 'admin') return toast('Le compte administrateur ne peut pas être supprimé.', 'err');
+    if (!confirm('Supprimer définitivement le compte de ' + a.nom + ' (' + (ROLES[a.role] || a.role) + ') ?')) return;
     Compte.supprimerCompte(a.npi);   // fiche + mot de passe + code de zone : le NPI redevient libre
     $('#fiche').hidden = true;
-    liste();
+    liste(); listeMod(); listeComptes(); afficherRecapDecl();
     toast('Compte supprimé.');
   };
 
@@ -2246,9 +2278,7 @@ PAGES.admin = function () {
   /* nouveaux acheteurs / modérateurs inscrits, journée déclarée : mise à jour sans recharger */
   actualiser = () => {
     liste(); listeMod(); listeComptes(); etatJournee(); afficherRecapDecl();
-    const a = DB.trouver(sel.value);
-    $('#fiche').hidden = !a;
-    if (a) remplirChamps($('#fiche'), a);
+    afficherFiche();
   };
 };
 

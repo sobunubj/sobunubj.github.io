@@ -123,12 +123,6 @@
     #lecteur video{max-width:100%;border-radius:10px}
     .toast{max-width:calc(100vw - 24px)}
 
-    /* bouton « Payé » : couleurs du bouton scanner au départ, greenyellow/blanc une fois payé (état partagé modérateur <-> acheteur) */
-    .btn-paye{display:block;width:100%;min-height:48px;margin:14px 0 4px;padding:10px 22px;border:2px solid var(--orange);border-radius:10px;
-              background:#fff1dc;color:var(--marine);font:inherit;font-weight:700;cursor:pointer;touch-action:manipulation}
-    .btn-paye.paye{background:green;color:#fff;border-color:green}
-    .btn-paye:disabled{opacity:.7;cursor:wait}
-
     @media (max-width:860px){
       .contenu{padding:64px 12px calc(24px + env(safe-area-inset-bottom,0px))}
       h1{font-size:1.5rem;margin-bottom:6px}
@@ -174,9 +168,9 @@
       <select id="choix"></select>
       <div id="fiche" hidden>
         <div class="stats">
-          <div class="stat"><span class="val" data-champ="tours"></span>tours (total)</div>
-          <div class="stat"><span class="val" data-champ="sacsJour"></span>sacs transportés</div>
-          <div class="stat stat-gain"><span class="val val-gain" data-champ="gain"></span>gain journalier (total)</div>
+          <div class="stat"><span class="val" data-champ="tours"></span>tours (chez mon acheteur)</div>
+          <div class="stat"><span class="val" data-champ="sacsJour"></span>sacs transportés (chez mon acheteur)</div>
+          <div class="stat stat-gain"><span class="val val-gain" data-champ="gain"></span>gain journalier (chez mon acheteur)</div>
         </div>
         <dl class="infos">
           <dt>NPI</dt><dd data-champ="npi"></dd>
@@ -184,9 +178,8 @@
           <dt>Téléphone</dt><dd data-champ="tel"></dd>
           <dt>Nombre de sacs par tour</dt><dd data-champ="sacs"></dd>
         </dl>
-        <h3>Détail par acheteur</h3>
+        <h3>Gain chez mon acheteur</h3>
         <div id="detail-ach"></div>
-        <button class="btn-paye" id="btn-paye" type="button" hidden>Payé</button>
       </div>
     </div>
   </main>
