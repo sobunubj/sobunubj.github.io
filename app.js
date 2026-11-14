@@ -311,15 +311,38 @@ function ficheComplete(u) {
     u.sacs = [2, 3, 4, 8, 10].includes(Number(u.sacs)) ? Number(u.sacs) : 2;
     nb('tours'); nb('gainJour'); nb('sacsJour');
     if (!u.jour) u.jour = aujourdhui();
-    obj('toursAch'); obj('gainAch'); obj('sacsAch');
+    obj('toursAch'); obj('gainAch'); obj('sacsAch'); obj('sacsPar');
   }
   if (u.role === 'acheteur') {
     if (!Array.isArray(u.transporteurs)) u.transporteurs = Object.values(u.transporteurs || {});
     obj('tarifs');
-    nb('sacsDeclares'); nb('somme');
+    nb('sacsDeclares'); nb('somme'); obj('sacsValides'); obj('sacsRefuses');
     if (!Array.isArray(u.declarations)) u.declarations = u.declaration ? [u.declaration] : [];
   }
   return u;
+}
+
+const SACS_LISTE = [2, 3, 4, 8, 10];   // nombres de sacs proposés par la liste déroulante
+/* Nombre de sacs par tour d'un transporteur CHEZ un acheteur donné (t.sacsPar = { NPI acheteur: nombre }).
+   - nombre de la liste : valable tout de suite
+   - autre nombre : valable seulement une fois validé par l'acheteur (a.sacsValides) ; 0 = en attente ou refusé
+   - aucun choix chez cet acheteur : on garde l'ancien nombre unique du transporteur */
+function sacsPour(t, npiA) {
+  const p = Number((t.sacsPar || {})[npiA]) || 0;
+  if (!p) return Number(t.sacs) || 0;
+  if (SACS_LISTE.includes(p)) return p;
+  const a = DB.trouver(npiA);
+  return a && Number((a.sacsValides || {})[t.npi]) === p ? p : 0;
+}
+/* '' (rien choisi) | 'liste' | 'valide' | 'attente' | 'refuse' */
+function statutSacs(t, npiA) {
+  const p = Number((t.sacsPar || {})[npiA]) || 0;
+  if (!p) return '';
+  if (SACS_LISTE.includes(p)) return 'liste';
+  const a = DB.trouver(npiA);
+  if (a && Number((a.sacsValides || {})[t.npi]) === p) return 'valide';
+  if (a && Number((a.sacsRefuses || {})[t.npi]) === p) return 'refuse';
+  return 'attente';
 }
 
 const Sync = {
@@ -458,7 +481,7 @@ const Sync = {
 
   /* Un tour validé : +1 tour, + les sacs, + le gain, au total ET pour l'acheteur concerné.
      Les "increment" sont calculés par le serveur : aucun scan ne peut en écraser un autre. */
-  async compterTour(t, npiA, prix) {
+  async compterTour(t, npiA, prix, sacs) {
     const inc = n => ({ '.sv': { increment: n } });
     const auj = aujourdhui();
     if (t.jour !== auj) {                             // nouvelle journée : remise à zéro (une seule fois)
@@ -468,9 +491,9 @@ const Sync = {
         gainAch: zeros(t.gainAch), toursAch: zeros(t.toursAch), sacsAch: zeros(t.sacsAch)
       });
     }
-    const corps = { tours: inc(1), sacsJour: inc(t.sacs), gainJour: inc(prix) };
+    const corps = { tours: inc(1), sacsJour: inc(sacs), gainJour: inc(prix) };
     corps['toursAch/' + npiA] = inc(1);
-    corps['sacsAch/' + npiA] = inc(t.sacs);
+    corps['sacsAch/' + npiA] = inc(sacs);
     corps['gainAch/' + npiA] = inc(prix);
     await this.ecrire('PATCH', '/users/' + t.npi, corps);
   }
@@ -797,14 +820,16 @@ const Compte = {
     const t = DB.trouver(npi), a = DB.trouver(npiA), m = DB.trouver(npiMod);
     if (!m || m.role !== 'moderateur' || !a || m.acheteur !== npiA) throw this._erreur('sobunu/pas-rattache', 'Vous n\'êtes rattaché à aucun acheteur : demandez-lui de vous ajouter.');
     if (!t || t.role !== 'transporteur') throw this._erreur('sobunu/qr', 'QR non reconnu.');
-    if (!a || !(a.transporteurs || []).includes(npi)) throw this._erreur('sobunu/pas-dans-liste', 'Ce transporteur n\'est pas dans la liste de cet acheteur.');
-    const prix = (a.tarifs || {})[t.sacs] || 0;
-    if (!prix) throw this._erreur('sobunu/pas-de-tarif', a.nom + ' n\'a pas défini de montant pour ' + t.sacs + ' sacs : tour non validé.');
+    if (!a || (!(a.transporteurs || []).includes(npi) && !(t.sacsPar || {})[npiA])) throw this._erreur('sobunu/pas-dans-liste', 'Ce transporteur n\'est pas dans la liste de cet acheteur.');
+    const sacs = sacsPour(t, npiA);                          // nombre de sacs pris chez CET acheteur
+    if (!sacs) throw this._erreur('sobunu/sacs-attente', 'Le nombre de sacs de ' + t.nom + ' n\'est pas encore validé par ' + a.nom + ' : tour non validé.');
+    const prix = (a.tarifs || {})[sacs] || 0;
+    if (!prix) throw this._erreur('sobunu/pas-de-tarif', a.nom + ' n\'a pas défini de montant pour ' + sacs + ' sacs : tour non validé.');
 
     if (Sync.actif()) {                                      // compteurs atomiques sur le serveur, puis relecture
-      await Sync.compterTour(t, npiA, prix);
+      await Sync.compterTour(t, npiA, prix, sacs);
       await Sync.tirerUsers();
-      return { transporteur: DB.trouver(npi), prix: prix };
+      return { transporteur: DB.trouver(npi), prix: prix, sacs: sacs };
     }
 
     majJour(t);
@@ -813,12 +838,12 @@ const Compte = {
     t.sacsAch = t.sacsAch || {};
     t.tours = (t.tours || 0) + 1;
     t.toursAch[npiA] = (t.toursAch[npiA] || 0) + 1;
-    t.sacsAch[npiA] = (t.sacsAch[npiA] || 0) + t.sacs;
-    t.sacsJour = (t.sacsJour || 0) + t.sacs;
+    t.sacsAch[npiA] = (t.sacsAch[npiA] || 0) + sacs;
+    t.sacsJour = (t.sacsJour || 0) + sacs;
     t.gainAch[npiA] = (t.gainAch[npiA] || 0) + prix;
     t.gainJour = (t.gainJour || 0) + prix;
     DB.enregistrer(t);
-    return { transporteur: t, prix: prix };
+    return { transporteur: t, prix: prix, sacs: sacs };
   }
 };
 
@@ -855,12 +880,12 @@ function detailAcheteurs(t) {
   const m = t.toursAch || {};
   /* tous les acheteurs qui ont ce transporteur dans leur liste, plus ceux avec qui il a déjà fait des tours */
   const npis = new Set(Object.keys(m).filter(k => m[k]));
-  DB.parRole('acheteur').forEach(a => { if ((a.transporteurs || []).includes(t.npi)) npis.add(a.npi); });
+  DB.parRole('acheteur').forEach(a => { if ((a.transporteurs || []).includes(t.npi) || (t.sacsPar || {})[a.npi]) npis.add(a.npi); });
   return [...npis].map(npi => {
     const a = DB.trouver(npi);
     if (!a) return null;
     const tours = m[npi] || 0;
-    const prix = (a.tarifs || {})[t.sacs] || 0;
+    const prix = (a.tarifs || {})[sacsPour(t, npi)] || 0;
     const g = (t.gainAch || {})[npi];                       // gain cumulé, ajouté à chaque tour scanné
     return { npi: npi, nom: a.nom, tours: tours, sacs: (t.sacsAch || {})[npi] || 0, prix: prix, gain: g !== undefined ? g : tours * prix };
   }).filter(Boolean);
@@ -1523,14 +1548,62 @@ PAGES.accueil = function () {
 /* ---------- TRANSPORTEUR ---------- */
 PAGES.transporteur = function () {
   const courant = DB.courant();                         // la page affiche directement le transporteur connecté
+  const selA = $('#acheteur-choix'), selS = $('#sacs'), blocAutre = $('#bloc-autre'), champAutre = $('#sacs-autre'), statut = $('#sacs-statut');
+  const cleChoix = 'sobunu_ach_choisi_' + courant.npi;
 
-  $('#sacs').onchange = () => {                         // changer le nombre de sacs
+  function remplirAcheteurs() {
+    remplirSelect(selA, DB.parRole('acheteur'), '-- Choisir l\'acheteur --');
+    if (!selA.value) {                                   // on reprend le dernier acheteur choisi sur cet appareil
+      const memo = DB.lire(cleChoix, '');
+      if (memo && [...selA.options].some(o => o.value === memo)) selA.value = memo;
+    }
+  }
+  function majStatut() {
+    const npiA = selA.value, a = npiA && DB.trouver(npiA);
+    if (!a) { statut.textContent = 'Choisissez d\'abord l\'acheteur chez qui vous prenez vos sacs : ils seront comptés sur sa page.'; return; }
+    const p = Number((courant.sacsPar || {})[npiA]) || 0, st = statutSacs(courant, npiA);
+    statut.textContent = !p ? 'Aucun nombre de sacs choisi chez ' + a.nom + '.'
+      : p + ' sacs par tour chez ' + a.nom +
+        (st === 'attente' ? ' — en attente de validation par l\'acheteur (aucun tour ne peut être validé avant).'
+          : st === 'refuse' ? ' — refusé par l\'acheteur : proposez un autre nombre.'
+          : st === 'valide' ? ' — validé par l\'acheteur.' : '.');
+  }
+  function afficherSacs() {                             // reflète le choix enregistré pour l'acheteur sélectionné
+    const npiA = selA.value, p = npiA ? Number((courant.sacsPar || {})[npiA]) || 0 : 0;
+    if (!p) { selS.value = ''; blocAutre.hidden = true; champAutre.value = ''; }
+    else if (SACS_LISTE.includes(p)) { selS.value = String(p); blocAutre.hidden = true; champAutre.value = ''; }
+    else { selS.value = 'autre'; blocAutre.hidden = false; champAutre.value = p; }
+    majStatut();
+  }
+  /* Le nombre est enregistré sur la fiche du transporteur, PAR acheteur : la page de cet acheteur le lit directement */
+  function enregistrerSacs(n) {
     const frais = DB.trouver(courant.npi);              // données les plus récentes (un tour a pu être validé à l'instant)
     if (frais) Object.assign(courant, frais);
-    courant.sacs = Number($('#sacs').value);
+    courant.sacsPar = Object.assign({}, courant.sacsPar, { [selA.value]: n });
+    if (SACS_LISTE.includes(n)) courant.sacs = n;
     DB.enregistrer(courant);
-    afficher();
-    toast('Nombre de sacs mis à jour.');
+    afficherSacs();
+  }
+
+  selA.onchange = () => { DB.ecrire(cleChoix, selA.value); afficherSacs(); };
+
+  selS.onchange = () => {
+    if (!selA.value) { selS.value = ''; return toast('Choisissez d\'abord l\'acheteur chez qui vous avez pris les sacs.', 'err'); }
+    if (selS.value === 'autre') { blocAutre.hidden = false; champAutre.focus(); return; }   // nombre hors liste : saisie ci-dessous
+    blocAutre.hidden = true;
+    if (!selS.value) return;
+    const n = Number(selS.value), a = DB.trouver(selA.value);
+    enregistrerSacs(n);
+    toast(n + ' sacs enregistrés : ils seront comptés chez ' + a.nom + '.');
+  };
+
+  $('#sacs-envoyer').onclick = () => {
+    if (!selA.value) return toast('Choisissez d\'abord l\'acheteur chez qui vous avez pris les sacs.', 'err');
+    const n = Number(champAutre.value);
+    if (!Number.isInteger(n) || n < 1 || n > 500) return toast('Entrez un nombre de sacs entier (de 1 à 500).', 'err');
+    const a = DB.trouver(selA.value);
+    enregistrerSacs(n);
+    toast(SACS_LISTE.includes(n) ? n + ' sacs enregistrés chez ' + a.nom + '.' : 'Nombre envoyé à ' + a.nom + ' : il doit le valider sur sa page.');
   };
 
   function afficher() {
@@ -1539,21 +1612,22 @@ PAGES.transporteur = function () {
     completerFiche($('#fiche'), courant);
     creerQR($('#qr'), courant.npi);
   }
+  remplirAcheteurs();
   afficher();
+  afficherSacs();
 
-  /* Mise à jour en direct : quand le modérateur scanne le QR, les tours et gains changent
-     (données lues dans le stockage local) -> on réaffiche sans recréer le QR */
+  /* Mise à jour en direct : tours, gains, nouveaux acheteurs et validation du nombre de sacs par l'acheteur */
   actualiser = () => {
     const t = DB.trouver(courant.npi);
     if (!t) { DB.fermerSession(); location.href = 'connexion.html'; return; }   // compte supprimé
     majJour(t);
-    const menu = $('#sacs');
-    const enChoix = document.activeElement === menu;   // on ne change pas le menu pendant que l'utilisateur choisit
-    const choisi = menu.value;
     Object.assign(courant, t);
+    const a = document.activeElement;
+    const enSaisie = a === selA || a === selS || a === champAutre;              // on ne change rien pendant que l'utilisateur choisit
+    if (!enSaisie) remplirAcheteurs();
     remplirChamps($('#fiche'), courant);
-    if (enChoix) menu.value = choisi;
     completerFiche($('#fiche'), courant);
+    if (enSaisie) majStatut(); else afficherSacs();
   };
 };
 
@@ -1583,6 +1657,9 @@ PAGES.moderateur = function () {
     $('#fiche').hidden = !t;
     if (!t) return;
     remplirChamps($('#fiche'), majJour(t));
+    const aMod = monAcheteur(), nbMod = aMod ? sacsPour(t, aMod.npi) : t.sacs;      // sacs par tour chez l'acheteur du modérateur
+    const champSacs = $('[data-champ="sacs"]', $('#fiche'));
+    if (champSacs) champSacs.textContent = nbMod || 'En attente de validation par l\'acheteur';
     completerFiche($('#fiche'), t);
   }
   sel.onchange = () => afficher(sel.value);
@@ -1597,7 +1674,7 @@ PAGES.moderateur = function () {
       try {
         const r = await Compte.validerTour(npi, a.npi, monNpi);
         liste(); sel.value = npi; afficher(npi);
-        toast('Tour validé pour ' + r.transporteur.nom + ' (' + a.nom + ') : +' + r.transporteur.sacs + ' sacs, +' + argent(r.prix));
+        toast('Tour validé pour ' + r.transporteur.nom + ' (' + a.nom + ') : +' + r.sacs + ' sacs, +' + argent(r.prix));
       } catch (e) {
         console.error('[tour]', e);
         toast((e && e.message) || 'Tour non validé.', 'err');
@@ -1707,7 +1784,9 @@ PAGES.acheteur = function () {
   } else { $('#bloc-declaration').hidden = true; if ($('#bloc-recap')) $('#bloc-recap').hidden = true; }
 
   function liste() {
-    const mes = (moi.transporteurs || []).map(DB.trouver.bind(DB)).filter(Boolean).map(majJour);
+    const npis = new Set(moi.transporteurs || []);                                   // ma liste + ceux qui prennent leurs sacs chez moi
+    DB.parRole('transporteur').forEach(t => { if ((t.sacsPar || {})[moi.npi]) npis.add(t.npi); });
+    const mes = [...npis].map(DB.trouver.bind(DB)).filter(Boolean).map(majJour);
     remplirSelect(sel, mes, '-- Choisir un transporteur --');
     afficherTotauxDecl();
     /* Totaux du jour de tous mes transporteurs (mis à jour à chaque scan du modérateur) */
@@ -1727,14 +1806,16 @@ PAGES.acheteur = function () {
     /* Gain journalier = nombre de tours x montant défini par l'acheteur pour le nombre de sacs par tour */
     const dd = $('[data-champ="gain"]', $('#fiche'));
     if (!estAdmin) {
-      const prix = moi.tarifs[t.sacs];
+      const nbSacs = sacsPour(t, moi.npi);                          // nombre de sacs pris chez MOI
+      const prix = moi.tarifs[nbSacs];
+      $('[data-champ="sacs"]', $('#fiche')).textContent = nbSacs || 'En attente de validation';
       const toursMoi = (t.toursAch || {})[moi.npi] || 0;           // tours effectués AVEC CET ACHETEUR seulement
       $('[data-champ="tours"]', $('#fiche')).textContent = toursMoi;
       $('[data-champ="sacsAch"]', $('#fiche')).textContent = (t.sacsAch || {})[moi.npi] || 0;
       const gMoi = (t.gainAch || {})[moi.npi];
       const total = gMoi !== undefined ? gMoi : toursMoi * (prix || 0);   // gain cumulé à chaque tour scanné
       dd.innerHTML = '<b style="color:var(--vert)">' + argent(total) + '</b>' +
-        (prix ? '' : ' <small><em>(montant non défini pour ' + t.sacs + ' sacs)</em></small>');
+        (prix ? '' : ' <small><em>(' + (nbSacs ? 'montant non défini pour ' + nbSacs + ' sacs' : 'nombre de sacs à valider') + ')</em></small>');
     } else {
       dd.innerHTML = '<b style="color:var(--vert)">' + dd.textContent + '</b>';
       $('[data-champ="sacsAch"]', $('#fiche')).textContent = t.sacsJour || 0;
@@ -1789,7 +1870,51 @@ PAGES.acheteur = function () {
     };
   }
 
+  /* --- Sacs pris chez moi : chaque transporteur indique l'acheteur chez qui il prend ses sacs.
+         Un nombre hors de la liste doit être validé ici (avec le montant par tour) avant que les tours soient comptés. --- */
+  const libStatut = { liste: '', valide: ' — validé', attente: ' — en attente de validation', refuse: ' — refusé' };
+  function afficherSacsPris() {
+    const zone = $('#sacs-pris');
+    if (!zone) return;
+    if (estAdmin) { $('#bloc-sacs-pris').hidden = true; return; }
+    const l = DB.parRole('transporteur').filter(t => (t.sacsPar || {})[moi.npi]);
+    zone.innerHTML = l.length ? l.map(t => {
+      const st = statutSacs(t, moi.npi), n = t.sacsPar[moi.npi], id = esc(t.npi);
+      const boutons = st === 'attente'
+        ? '<button class="btn" type="button" data-act="valider" data-npi="' + id + '">Valider</button><button class="btn btn-danger" type="button" data-act="refuser" data-npi="' + id + '">Refuser</button>'
+        : st === 'refuse' ? '<button class="btn btn-2" type="button" data-act="valider" data-npi="' + id + '">Valider quand même</button>' : '';
+      return '<div class="ach-ligne"><strong>' + esc(t.nom) + '</strong><span>NPI : ' + id + ' — Tél. : ' + esc(t.tel) + '</span>' +
+        '<span>Sacs par tour : <b>' + esc(n) + '</b>' + libStatut[st] + '</span>' +
+        (boutons ? '<div class="boutons" style="margin-top:6px">' + boutons + '</div>' : '') + '</div>';
+    }).join('') : '<p><em>Aucun transporteur n\'a encore indiqué de sacs pris chez vous.</em></p>';
+  }
+  if ($('#sacs-pris')) $('#sacs-pris').onclick = async e => {
+    const b = e.target.closest('button[data-act]');
+    const t = b && DB.trouver(b.dataset.npi);
+    const n = t && Number((t.sacsPar || {})[moi.npi]);
+    if (!t || !n || estAdmin) return;
+    moi.sacsValides = moi.sacsValides || {}; moi.sacsRefuses = moi.sacsRefuses || {};
+    if (b.dataset.act === 'valider') {
+      const actuel = moi.tarifs[n];
+      const saisi = await demanderTexte('Montant par tour pour ' + n + ' sacs (FCFA)', actuel ? 'Actuel : ' + actuel : 'Ex. 1500');
+      if (saisi === null) return;
+      const montant = saisi === '' ? actuel : Math.round(Number(saisi));
+      if (!(montant > 0)) return toast('Entrez un montant supérieur à 0.', 'err');
+      moi.tarifs[n] = montant;
+      moi.sacsValides[t.npi] = n;
+      delete moi.sacsRefuses[t.npi];
+      toast(n + ' sacs validés pour ' + t.nom + ' (' + argent(montant) + ' par tour).');
+    } else {
+      moi.sacsRefuses[t.npi] = n;
+      if (Number(moi.sacsValides[t.npi]) === n) delete moi.sacsValides[t.npi];
+      toast('Nombre de sacs refusé pour ' + t.nom + '.');
+    }
+    DB.enregistrer(moi);
+    afficherSacsPris(); afficherTarifs(); liste();
+  };
+
   liste();
+  afficherSacsPris();
   sel.onchange = () => afficher(sel.value);
 
   $('#ajouter').onclick = async () => {
@@ -1824,6 +1949,7 @@ PAGES.acheteur = function () {
     }
     liste();
     afficherMods();
+    afficherSacsPris();
     if (sel.value) afficher(sel.value);
   };
 };

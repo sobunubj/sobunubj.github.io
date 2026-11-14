@@ -151,12 +151,6 @@
       #bloc-transporteurs .carte,#bloc-transporteurs{padding:16px}
     }
     @media print{ #bloc-transporteurs{display:none!important} }
-    /* bouton « Payé » : couleurs du bouton scanner au départ, greenyellow/blanc une fois payé (état partagé modérateur <-> acheteur) */
-    .btn-paye{display:block;width:100%;min-height:48px;margin:14px 0 4px;padding:10px 22px;border:2px solid var(--orange);border-radius:10px;
-              background:#fff1dc;color:var(--marine);font:inherit;font-weight:700;cursor:pointer;touch-action:manipulation}
-    .btn-paye.paye{background:green;color:#fff;border-color:green}
-    .btn-paye:disabled{opacity:.7;cursor:wait}
-
     /* Mes modérateurs : on touche une carte pour la choisir, puis « Retirer » (à côté de « Ajouter modérateur ») */
     .mod-ligne{cursor:pointer}
     .mod-ligne.choisi{border:2px solid var(--orange);background:#fff1dc}
@@ -173,17 +167,12 @@
       <div class="stat"><b id="total-sacs">0</b>sacs déclarés à l'administrateur</div>
       <div class="stat"><b id="total-somme">0</b>montant payé pour le dédouanement</div>
     </div>
-    <div class="carte" id="bloc-validation-sacs" hidden>
-      <h2>Nombre de sacs à valider</h2>
-      <p><small>Quand un transporteur inscrit lui-même son nombre de sacs (absent de sa liste), validez-le ou rejetez-le. Un nombre choisi dans la liste est validé automatiquement.</small></p>
-      <div id="validation-liste" style="display:flex;flex-direction:column;gap:10px;margin:10px 0"></div>
-    </div>
     <div class="carte" id="bloc-tarifs">
       <h2 data-i18n="tarif_title">Montant du transport</h2>
       <p>Fixez le montant que vous payez selon le nombre de sacs transportés.</p>
       <label for="tarif-sacs" data-i18n="tarif_sacs">Nombre de sacs</label>
       <select id="tarif-sacs" style="width:auto">
-        <option value="2">Deux sacs</option><option value="3">Trois sacs</option><option value="4">Quatre sacs</option>
+        <option value="2">Deux sacs</option><option value="3">Trois sacs</option><option value="4">Quatre sacs</option><option value="8">Huit sacs</option><option value="10">Dix sacs</option>
       </select>
       <label for="tarif-montant" data-i18n="tarif_amount">Montant (FCFA)</label>
       <input class="champ" id="tarif-montant" type="number" min="1" step="50" placeholder="Ex. 1500" style="width:200px">
@@ -220,6 +209,11 @@
       <div id="mod-liste" style="display:flex;flex-direction:column;gap:10px;margin:10px 0"></div>
       <div class="boutons"><button class="btn btn-2" id="mod-ajouter" type="button">+ Ajouter modérateur</button><button class="btn btn-danger" id="mod-retirer-ach" type="button">Retirer</button></div>
     </div>
+    <div class="carte" id="bloc-sacs-pris">
+      <h2>Sacs pris chez moi</h2>
+      <p><small>Chaque transporteur indique ici l'acheteur chez qui il prend ses sacs. Si son nombre de sacs n'est pas dans la liste, il vous l'envoie : validez-le (et fixez le montant par tour) pour que ses tours puissent être comptés.</small></p>
+      <div id="sacs-pris" style="display:flex;flex-direction:column;gap:10px;margin:10px 0"></div>
+    </div>
     <div class="carte" id="bloc-transporteurs">
       <h2>Mes transporteurs</h2>
       <div class="stats" id="stats-jour">
@@ -252,7 +246,6 @@
           <div class="stat"><span class="val" data-champ="sacsAch"></span>sacs transportés (avec moi)</div>
           <div class="stat stat-gain"><span class="val val-gain" data-champ="gain"></span>gain journalier (avec moi)</div>
         </div>
-        <button class="btn-paye" id="btn-paye" type="button" hidden>Payé</button>
       </div>
       <p class="aide aide-vide"><em>Choisissez un transporteur dans la liste, ou ajoutez-en un avec son NPI.</em></p>
     </div>
